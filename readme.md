@@ -9,6 +9,7 @@
 - open audio file via *Select File* Button
   - depending on the files size and format this may take some seconds
 - adjust parameters if needed an *Play*
+- or visit github pages: https://goepfert.github.io/loudness_adaption_demo/
 
 
 ## Parameters
