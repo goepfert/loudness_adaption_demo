@@ -6,13 +6,13 @@
 
 'use strict';
 
-class BiquadFilter_DF2 {
+export default class BiquadFilter_DF2 {
   constructor(coef) {
     this.numberOfCascade = undefined;
     this.coefficients = [];
     this.memories = [];
 
-    if(coef !== undefined) {
+    if (coef !== undefined) {
       this.setCoefficients(coef);
     }
   }
@@ -37,7 +37,7 @@ class BiquadFilter_DF2 {
           b1: coef[2 + i * 5],
           b2: coef[3 + i * 5],
           a1: coef[4 + i * 5],
-          a2: coef[5 + i * 5]
+          a2: coef[5 + i * 5],
         };
       }
 
@@ -45,7 +45,7 @@ class BiquadFilter_DF2 {
       this.resetMemories();
       return true;
     } else {
-      throw new Error("No coefficients are set");
+      throw new Error('No coefficients are set');
     }
   }
 
@@ -63,7 +63,7 @@ class BiquadFilter_DF2 {
     for (let i = 0; i < this.numberOfCascade; i++) {
       this.memories[i] = {
         wi1: 0.0,
-        wi2: 0.0
+        wi2: 0.0,
       };
     }
   }
@@ -78,7 +78,6 @@ class BiquadFilter_DF2 {
     let y = [];
     let b0, b1, b2, a1, a2;
     let w, wi1, wi2;
-
 
     for (let bufIdx = 0; bufIdx < inputBuffer.length; bufIdx++) {
       x = inputBuffer[bufIdx];
@@ -123,7 +122,8 @@ class BiquadFilter_DF2 {
 
       // Write the output
       outputBuffer[bufIdx] = this.coefficients.gain * y[this.numberOfCascade - 1];
-
     } // next buffer element
   } // end process
 }
+
+// export default BiquadFilter_DF2;

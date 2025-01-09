@@ -1,16 +1,15 @@
 /**
  * inspired by https://github.com/cwilso/volume-meter/blob/master/volume-meter.js
  * extended for more than one channel
- * 
+ *
  * clipLevel: the level (0 to 1) that you would consider "clipping". Defaults to 0.98.
  * averaging: how "smoothed" you would like the meter to be over time. Should be between 0 and less than 1. Defaults to 0.95.
  * clipLag: how long you would like the "clipping" indicator to show after clipping has occured, in milliseconds. Defaults to 750ms.
- * 
+ *
  * (co)author: Thomas Goepfert
  */
 
 function createAudioMeter(audioContext, nChannels, clipLevel, averaging, clipLag) {
-
   let processor = audioContext.createScriptProcessor(1024);
   processor.onaudioprocess = volumeAudioProcess;
   processor.clipping = [];
@@ -28,14 +27,14 @@ function createAudioMeter(audioContext, nChannels, clipLevel, averaging, clipLag
     if (!this.clipping[channel]) {
       return false;
     }
-    if ((this.lastClip[channel] + this.clipLag) < window.performance.now()) {
+    if (this.lastClip[channel] + this.clipLag < window.performance.now()) {
       this.clipping[channel] = false;
     }
     return this.clipping[channel];
   };
 
-  processor.checkClipping = function() {
-    for(let chIdx = 0; chIdx<this.clipping.length; chIdx++){
+  processor.checkClipping = function () {
+    for (let chIdx = 0; chIdx < this.clipping.length; chIdx++) {
       if (this.checkClippingChannel(chIdx)) {
         return true;
       }
@@ -48,7 +47,7 @@ function createAudioMeter(audioContext, nChannels, clipLevel, averaging, clipLag
     this.onaudioprocess = null;
   };
 
-  for(let chIdx=0; chIdx<nChannels; chIdx++) {
+  for (let chIdx = 0; chIdx < nChannels; chIdx++) {
     processor.volume.push(0);
     processor.clipping.push(false);
   }
@@ -57,7 +56,6 @@ function createAudioMeter(audioContext, nChannels, clipLevel, averaging, clipLag
 }
 
 function volumeAudioProcess(event) {
-
   let nChannels = event.inputBuffer.numberOfChannels;
 
   for (let chIdx = 0; chIdx < nChannels; chIdx++) {
@@ -86,3 +84,5 @@ function volumeAudioProcess(event) {
     //console.log('v', this.volume[chIdx], rms, chIdx);
   }
 }
+
+export { createAudioMeter };

@@ -1,7 +1,7 @@
 /**
-  * Direct Form 1 Biquad Filter
+ * Direct Form 1 Biquad Filter
  * Inspired by https://github.com/Ircam-RnD/biquad-filter
- * 
+ *
  * (co)author: Thomas Goepfert
  */
 
@@ -32,7 +32,7 @@ class BiquadFilter_DF1 {
           b1: coef[2 + i * 5],
           b2: coef[3 + i * 5],
           a1: coef[4 + i * 5],
-          a2: coef[5 + i * 5]
+          a2: coef[5 + i * 5],
         };
       }
 
@@ -40,7 +40,7 @@ class BiquadFilter_DF1 {
       this.resetMemories();
       return true;
     } else {
-      throw new Error("No coefficients are set");
+      throw new Error('No coefficients are set');
     }
   }
 
@@ -55,16 +55,18 @@ class BiquadFilter_DF1 {
    * Reset memories of biquad filters.
    */
   resetMemories() {
-    this.memories = [{
-      xi1: 0,
-      xi2: 0,
-      yi1: 0,
-      yi2: 0
-    }];
+    this.memories = [
+      {
+        xi1: 0,
+        xi2: 0,
+        yi1: 0,
+        yi2: 0,
+      },
+    ];
     for (let i = 1; i < this.numberOfCascade; i++) {
       this.memories[i] = {
         yi1: 0,
-        yi2: 0
+        yi2: 0,
       };
     }
   }
@@ -129,3 +131,5 @@ class BiquadFilter_DF1 {
     } // next buffer element
   } // end process
 }
+
+export default BiquadFilter_DF1;

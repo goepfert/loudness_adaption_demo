@@ -1,48 +1,53 @@
 /**
- * WebAudio JS implementation of Loudness Calculation based on  
- * https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-4-201510-I%21%21PDF-E.pdf  
+ * WebAudio JS implementation of Loudness Calculation based on
+ * https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-4-201510-I%21%21PDF-E.pdf
  * https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BS.2217-2-2016-PDF-E.pdf
- * 
+ *
  * possible performance optimizations:
  *  - don't copy the whole audiobuffer but just save save meansqares (or further calculations) of the intervals
- * 
+ *
  * author: Thomas Goepfert
  */
 
-'use strict';
+import BiquadFilter_DF2 from './biquadfilter_df2.js';
+import CircularAudioBuffer from './circularAudioBuffer.js';
+
+('use strict');
 
 /**
  * buffer: the AudioBuffer, only needed for getting samplerate and number of channels, may also be obtained elsewhere
  * callback: callback function called after processing a chunk of the audiobuffer
  */
-class LoudnessSample {
-  constructor(buffer, callback, props, id) {
+export default class LoudnessSample {
+  constructor(context, buffer, callback, props, id) {
+    this.context = context;
 
-    this.id = id || -1;             // debugging purpose
-    this.blocked = false;           // can I reset the buffers?
+    this.id = id || -1; // debugging purpose
+    this.blocked = false; // can I reset the buffers?
 
     this.loudnessprops = Object.assign({}, props); // not sure if I really need a 'deep' copy
 
-    this.gamma_a = -70;             // LKFS
-    this.copybuffer = undefined;    // 'history' circular audiobuffer
-    this.once = true;               // some logging
-    this.nCall = 0;                 // how many chunks processed so far
+    this.gamma_a = -70; // LKFS
+    this.copybuffer = undefined; // 'history' circular audiobuffer
+    this.once = true; // some logging
+    this.nCall = 0; // how many chunks processed so far
 
     this.nChannels = buffer.numberOfChannels;
     this.sampleRate = buffer.sampleRate;
     this.nSamplesPerInterval = 0;
     this.nStepsize = 0;
 
-    this.PreStageFilter = [];       // array of filters (one for each channel) applied before loundness calculation
-    this.channelWeight = [];        // Gi
-    this.bypass = false;            // bypass PrestageFilters, testing purpose
+    this.PreStageFilter = []; // array of filters (one for each channel) applied before loundness calculation
+    this.channelWeight = []; // Gi
+    this.bypass = false; // bypass PrestageFilters, testing purpose
 
     // Pre Stage Filter Coefficient for Direct2 Norm
-    // parameters given in https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-4-201510-I%21%21PDF-E.pdf  
+    // parameters given in https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-4-201510-I%21%21PDF-E.pdf
     // gain, high shelving, high-pass
-    let coef = [1.0,
-      1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, 0.73248077421585,
-      1.0, -2.0, 1.0, -1.99004745483398, 0.99007225036621];
+    let coef = [
+      1.0, 1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, 0.73248077421585, 1.0, -2.0, 1.0,
+      -1.99004745483398, 0.99007225036621,
+    ];
 
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
       this.PreStageFilter.push(new BiquadFilter_DF2(coef));
@@ -75,7 +80,18 @@ class LoudnessSample {
   }
 
   printSomeInfo() {
-    console.log('Interval [s]:', this.loudnessprops.interval, '\nsamples / intervall', this.nSamplesPerInterval, '\noverlap [fraction]:', this.loudnessprops.overlap, '\nStepSize:', this.nStepsize, '\nmaxT [s]:', this.loudnessprops.maxT);//, '\nmaxSamples:', this.maxSamples);
+    console.log(
+      'Interval [s]:',
+      this.loudnessprops.interval,
+      '\nsamples / intervall',
+      this.nSamplesPerInterval,
+      '\noverlap [fraction]:',
+      this.loudnessprops.overlap,
+      '\nStepSize:',
+      this.nStepsize,
+      '\nmaxT [s]:',
+      this.loudnessprops.maxT
+    ); //, '\nmaxSamples:', this.maxSamples);
   }
 
   resetMemory() {
@@ -88,7 +104,7 @@ class LoudnessSample {
    * can be used to mimic a fresh start of the loudness calculation (e.g. a track change)
    */
   resetBuffer() {
-    while (this.blocked == true) { }; // dangerous ...
+    while (this.blocked == true) {} // dangerous ...
     if (this.copybuffer != undefined) {
       this.copybuffer.length = 0;
       this.copybuffer = undefined;
@@ -103,7 +119,6 @@ class LoudnessSample {
    * called by the ScriptProcessor Node with chunks of the AudioBuffer
    */
   onProcess(audioProcessingEvent) {
-
     this.blocked = true;
     this.nCall++;
 
@@ -124,7 +139,7 @@ class LoudnessSample {
       }
     } // next channel
 
-    let time = this.nCall * inputBuffer.length / this.sampleRate;
+    let time = (this.nCall * inputBuffer.length) / this.sampleRate;
     let gl = this.calculateLoudness(outputBuffer);
     this.callback(time, gl);
 
@@ -132,16 +147,15 @@ class LoudnessSample {
   }
 
   /**
-   * calculates gated loudness of the accumulated Audiobuffers since time T 
+   * calculates gated loudness of the accumulated Audiobuffers since time T
    */
   calculateLoudness(buffer) {
-
     // first call or after resetMemory
     if (this.copybuffer == undefined) {
-      // how long should the copybuffer be at least? 
+      // how long should the copybuffer be at least?
       // --> at least maxT should fit in and length shall be an integer fraction of buffer length
-      let length = Math.floor(this.sampleRate * this.loudnessprops.maxT / buffer.length + 1) * buffer.length;
-      this.copybuffer = new CircularAudioBuffer(context, this.nChannels, length, this.sampleRate);
+      let length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer.length + 1) * buffer.length;
+      this.copybuffer = new CircularAudioBuffer(this.context, this.nChannels, length, this.sampleRate);
     }
 
     //accumulate buffer to previous call
@@ -161,29 +175,29 @@ class LoudnessSample {
     this.filterBlocks(meanSquares, this.gamma_a);
 
     // second stage filter
-    let gamma_r = 0.;
+    let gamma_r = 0;
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-      let mean = 0.;
+      let mean = 0;
       for (let idx = 0; idx < meanSquares[chIdx].length; idx++) {
         mean += meanSquares[chIdx][idx];
       }
       mean /= meanSquares[chIdx].length;
-      gamma_r += (this.channelWeight[chIdx] * mean);
+      gamma_r += this.channelWeight[chIdx] * mean;
     }
-    gamma_r = -0.691 + 10.0 * Math.log10(gamma_r) - 10.;
+    gamma_r = -0.691 + 10.0 * Math.log10(gamma_r) - 10;
 
     this.filterBlocks(meanSquares, gamma_r);
 
     // gated loudness from filtered blocks
-    let gatedLoudness = 0.;
+    let gatedLoudness = 0;
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-      let mean = 0.;
+      let mean = 0;
       for (let idx = 0; idx < meanSquares[chIdx].length; idx++) {
         mean += meanSquares[chIdx][idx];
       }
       mean /= meanSquares[chIdx].length;
 
-      gatedLoudness += (this.channelWeight[chIdx] * mean);
+      gatedLoudness += this.channelWeight[chIdx] * mean;
     }
     gatedLoudness = -0.691 + 10.0 * Math.log10(gatedLoudness);
 
@@ -226,7 +240,7 @@ class LoudnessSample {
       meansquare += data; //*data; //the squares are already saved
     }
 
-    return (meansquare / (idx2 - idx1));
+    return meansquare / (idx2 - idx1);
   }
 
   /**
@@ -235,9 +249,9 @@ class LoudnessSample {
   filterBlocks(meanSquares, value) {
     //assuming that all other meansquares (other channels) have same length
     for (let idx = meanSquares[0].length - 1; idx >= 0; idx--) {
-      let blockmeansquare = 0.;
+      let blockmeansquare = 0;
       for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-        blockmeansquare += (this.channelWeight[chIdx] * meanSquares[chIdx][idx]);
+        blockmeansquare += this.channelWeight[chIdx] * meanSquares[chIdx][idx];
       }
       let blockloudness = -0.691 + 10.0 * Math.log10(blockmeansquare);
 
@@ -249,5 +263,6 @@ class LoudnessSample {
       }
     }
   }
-
 }
+
+// export default LoudnessSample;
