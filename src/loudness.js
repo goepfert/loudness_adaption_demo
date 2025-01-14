@@ -18,7 +18,7 @@ import CircularAudioBuffer from './circularAudioBuffer.js';
  * buffer: the AudioBuffer, only needed for getting samplerate and number of channels, may also be obtained elsewhere
  * callback: callback function called after processing a chunk of the audiobuffer
  */
-export default class LoudnessSample {
+class LoudnessSample {
   constructor(context, buffer, callback, props, id) {
     this.context = context;
 
@@ -100,7 +100,7 @@ export default class LoudnessSample {
   }
 
   /**
-   * clear copybuffer and memeory of the prestage filters
+   * clear copybuffer and memory of the prestage filters
    * can be used to mimic a fresh start of the loudness calculation (e.g. a track change)
    */
   resetBuffer() {
@@ -265,4 +265,4 @@ export default class LoudnessSample {
   }
 }
 
-// export default LoudnessSample;
+export default LoudnessSample;

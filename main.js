@@ -161,9 +161,10 @@ const ParaCtrl = (() => {
 const GraphCtrl = (() => {
   let graph = undefined;
   let fistcall = true;
-  let dataseries = [[0, 0, 0, 0, 0, 0]];
+  // let dataseries = [[0, 0, 0, 0, 0, 0]];
+  let dataseries = [[0, 0, 0, 0, 0]];
   let data = [];
-  let MAXDATAPOINTS = 6;
+  let MAXDATAPOINTS = 5;
   let MAXGRAPHENTRIES = 400;
   resetData();
 
@@ -176,7 +177,14 @@ const GraphCtrl = (() => {
       labelsKMB: true,
       highlightSeriesOpts: { strokeWidth: 2 },
       legend: 'always',
-      labels: ['x', 'Live Loudness', 'Loudness after gain control', 'Target Loudness', 'Target Gain', 'Mean Loudness'],
+      labels: [
+        'x',
+        'Live Loudness',
+        'Loudness after gain control',
+        'Target Loudness',
+        'Target Gain',
+        // 'Mean Live Loudness',
+      ],
       //labelsDivWidth: 100,
       labelsSeparateLines: true,
       series: {
@@ -245,7 +253,8 @@ const GraphCtrl = (() => {
   // empty data (label, value)
   function resetGraph() {
     if (graph != undefined) {
-      dataseries = [[0, 0, 0, 0, 0, 0]];
+      // dataseries = [[0, 0, 0, 0, 0, 0]];
+      dataseries = [[0, 0, 0, 0, 0]];
       fistcall = true;
       resetData();
       updateGraph();
@@ -272,6 +281,7 @@ const GraphCtrl = (() => {
 
 // UI Controller ----------------------------------------------------------------------------
 const UICtrl = (() => {
+  // Mapping of UI elements
   const UISelectors = {
     playPauseButton: 'btn_play_pause',
     stopButton: 'btn_stop',
@@ -445,10 +455,12 @@ function createAudioCtxCtrl(buffer, callback) {
   let MINDB = 2;
 
   // nice one ... can be used as 'constructor' function
+  // but ... kinda sensless
   (function construct() {
     targetLKFS = ParaCtrl.getTargetLoudness();
   })();
 
+  // not nice, the other callback is defined in the app controller :(
   function callback_control(time, loudness) {
     if (App.debug) {
       time = getCurrentTime();
@@ -477,11 +489,12 @@ function createAudioCtxCtrl(buffer, callback) {
         context,
         buffer,
         callback_control,
-        {
-          interval: 0.4,
-          overlap: 0.75,
-          maxT: 1,
-        },
+        ParaCtrl.getLoudnessProperties(),
+        // {
+        //   interval: 0.4,
+        //   overlap: 0.75,
+        //   maxT: 10,
+        // },
         2
       );
     }
@@ -591,7 +604,7 @@ function createAudioCtxCtrl(buffer, callback) {
       meanLoudness += loudnessHistory[idx];
     }
     meanLoudness /= loudnessHistory.length;
-    GraphCtrl.setDataPoint(meanLoudness, 5);
+    // GraphCtrl.setDataPoint(meanLoudness, 5);
 
     //console.log('max / length / loudness / mean', nHistoryLoudness, loudnessHistory.length, loudness, meanLoudness);
 
@@ -600,8 +613,8 @@ function createAudioCtxCtrl(buffer, callback) {
     decay_increase = ParaCtrl.getDecayIncrease().decay_increase[ParaCtrl.getDecayIncrease().decay_increase_idx];
     targetLKFS = ParaCtrl.getTargetLoudness();
 
-    //let dB = loudness - targetLKFS;
-    let dB = meanLoudness - targetLKFS;
+    let dB = loudness - targetLKFS;
+    //let dB = meanLoudness - targetLKFS;
 
     let endTime = Math.abs(dB / decay_increase);
     if (dB > 0) {

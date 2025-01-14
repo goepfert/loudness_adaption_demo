@@ -1,4 +1,4 @@
-# Live Loudness Demo
+# Live Dynamic Loudness Demo
 - Algorithm based on [ITU-R BS.1770-5](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-5-202311-I!!PDF-E.pdf)
 - Implemented in plain javascript using Web Audio API
 
@@ -42,7 +42,7 @@ The gain to compensate the difference between *Live Loudness* and *Target Loudne
 *Remark*: There is no clipping control implemented.
 
 **Loudness after gain control**
-The Loudness is (re)calculted after setting the target gain with a fixed Window Size of 1 second.
+The Loudness is (re)calculted after setting the target gain with a fixed Window Size of the same as for Live Loudness calculation.
 
 
 ## Volume Meter
