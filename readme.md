@@ -56,3 +56,4 @@ A simple attempt to check if there is clipping. It checks if there are samples w
 ## TODOs
 - Have a look into the true-peak audio level section of ITU-R BS.1770-5
 - Implement and test multi-channel audio (besides stereo)
+- Check further files
