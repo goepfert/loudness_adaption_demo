@@ -1,16 +1,21 @@
 .dygraph-legend {
-    background-color: transparent !important;
-    left: 100% !important;
-    padding: 4px;
-    border: 1px solid #bbb;
-    border-radius: 4px;
-    pointer-events: none;
-  }
+  background-color: transparent !important;
+  left: 100% !important;
+  padding: 4px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  pointer-events: none;
+}
 
-  .mycontainer {
-    position: relative;
-    width: 100%;
-    margin: 0 auto;
-    padding: 0 20px;
-    box-sizing: border-box; 
-  }
+.mycontainer {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.footer {
+  font-family: 'Permanent marker', cursive;
+  text-align: right;
+}
