@@ -4,13 +4,18 @@
 
 
 ## Usage
-- Clone repository and open *index.html* file in Browser (tested with FF 60.1.0esr)
+- Clone repository and open *index.html* file in Browser (tested with FF 60.1.0esr) or start webserver
 - Audio files sample including test files from [ITU-R-BS.2217](https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BS.2217-2-2016-PDF-E.pdf) and a couple of others located under /files subdirectory
 - Open audio file via *Select File* Button
-  - Depending on the files size and format this may take some seconds
-- Adjust parameters if needed an *Play*
+  - Depending on the files size and format this may take a little
+- Adjust parameters if needed and *Play*
+- You can also *Reset Loudness Calculation*. Can e.g. simulate some artificial track change while playing
 - Or visit github pages: https://goepfert.github.io/loudness_adaption_demo/
+  - But you would probably need some audio files from this repo
 
+## Remarks
+Certainly needs some more testing if properly implemented, but doesn't look so bad in the first place.
+And also some refactoring and code review ...
 
 ## Parameters
 **Interval Size**
@@ -24,10 +29,10 @@ How many seconds the algorithm shall look back if enough data is available.
 
 
 ## Signal Flow
-AudioBufferSource -> Live Loudness Calculation (Web Audio Script Processor)
-                  -> Gain Control -> Post Loudness Calculation (Web Audio Script Processor)
-                                  -> Volume Meter (Web Audio Script Processor)
-                                  -> Audio Out
+AudioBufferSource -> Live Loudness Calculation (Web Audio Script Processor)\
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -> Gain Control -> Post Loudness Calculation (Web Audio Script Processor)\
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -> Volume Meter (Web Audio Script Processor)\
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -> Audio Out
 
 
 ## What is plotted
@@ -47,3 +52,7 @@ The Loudness is (re)calculted after setting the target gain with a fixed Window 
 
 ## Volume Meter
 A simple attempt to check if there is clipping. It checks if there are samples with values near the maximum (abs(value) > 0.98) within the last 250 ms. If so, it meter graph turns red.
+
+## TODOs
+- Have a look into the true-peak audio level section of ITU-R BS.1770-5
+- Implement and test multi-channel audio (besides stereo)
