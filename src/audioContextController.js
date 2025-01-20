@@ -15,13 +15,13 @@ import { Config } from './config.js';
 
 function createAudioCtxCtrl(audioContext, buffer, callback) {
   let targetLKFS = ParaCtrl.getTargetLoudness();
-  let startGain = 1.0;
+  const startGain = 1.0;
   let targetGain = 1.0;
 
   let decay_decrease = undefined;
   let decay_increase = undefined;
 
-  let bufferSize = 4096;
+  const bufferSize = 4096;
   let sp_loudness = undefined;
   let sp_loudness_control = undefined;
   let source = undefined;
@@ -40,6 +40,7 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
   let loudnessHistory = [];
 
   // not so nice, the other callback is defined in the app controller :(
+  // but I'll leave it here
   function callback_control(time, loudness) {
     if (Config.debug) {
       time = getCurrentTime();
@@ -53,7 +54,7 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
     loudness = Number(loudness.toFixed(2));
     GraphCtrl.setDataPoint(loudness, 2);
     GraphCtrl.setDataPoint(targetLKFS, 3);
-    GraphCtrl.setDataPoint(targetGain, 4);
+    GraphCtrl.setDataPoint(targetGain, 4); // last call
   }
 
   function play() {
@@ -68,12 +69,12 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
         audioContext,
         buffer,
         callback_control,
-        ParaCtrl.getLoudnessProperties(),
-        // {
-        //   interval: 0.4,
-        //   overlap: 0.75,
-        //   maxT: 10,
-        // },
+        // ParaCtrl.getLoudnessProperties(),
+        {
+          interval: 0.4,
+          overlap: 0.75,
+          maxT: Config.maxT_recalc_loudness,
+        },
         2
       );
     }
@@ -103,7 +104,7 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
     source.connect(gain);
     gain.connect(sp_loudness_control);
     gain.connect(audioContext.destination);
-    //source.connect(audioContext.destination);
+    // source.connect(audioContext.destination);
 
     meter = createAudioMeter(audioContext, buffer.numberOfChannels, 0.98, 0.95, 250);
     gain.connect(meter);

@@ -3,7 +3,7 @@
  * https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-4-201510-I%21%21PDF-E.pdf
  * https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BS.2217-2-2016-PDF-E.pdf
  *
- * possible performance optimizations:
+ * Possible performance optimizations:
  *  - don't copy the whole audiobuffer but just save save meansqares (or further calculations) of the intervals
  *
  * author: Thomas Goepfert
@@ -61,7 +61,7 @@ class LoudnessSample {
     this.callback = callback;
 
     this.initLoudnessProps();
-    console.log('the audiobuffer:', buffer);
+    console.log('🚀 ~ LoudnessSample ~ constructor ~ buffer:', buffer);
   }
 
   initLoudnessProps() {
@@ -104,7 +104,7 @@ class LoudnessSample {
    * can be used to mimic a fresh start of the loudness calculation (e.g. a track change)
    */
   resetBuffer() {
-    while (this.blocked == true) {} // dangerous ...
+    while (this.blocked == true) {} // muchos dangerous ...
     if (this.copybuffer != undefined) {
       this.copybuffer.length = 0;
       this.copybuffer = undefined;
@@ -116,7 +116,7 @@ class LoudnessSample {
   }
 
   /**
-   * called by the ScriptProcessor Node with chunks of the AudioBuffer
+   * Called by the ScriptProcessor Node with chunks of the AudioBuffer
    */
   onProcess(audioProcessingEvent) {
     this.blocked = true;
@@ -154,11 +154,11 @@ class LoudnessSample {
     if (this.copybuffer == undefined) {
       // how long should the copybuffer be at least?
       // --> at least maxT should fit in and length shall be an integer fraction of buffer length
-      let length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer.length + 1) * buffer.length;
+      const length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer.length + 1) * buffer.length;
       this.copybuffer = new CircularAudioBuffer(this.context, this.nChannels, length, this.sampleRate);
     }
 
-    //accumulate buffer to previous call
+    // accumulate buffer to previous calls
     this.copybuffer.concat(buffer);
 
     // must be gt nSamplesPerInterval
@@ -202,7 +202,6 @@ class LoudnessSample {
     gatedLoudness = -0.691 + 10.0 * Math.log10(gatedLoudness);
 
     //console.log(this.id, '- gatedLoudness:', gatedLoudness);
-
     return gatedLoudness;
   }
 
@@ -211,14 +210,14 @@ class LoudnessSample {
    */
   getBufferMeanSquares(buffer, nSamplesPerInterval, nStepsize) {
     let meanSquares = {};
+    const length = buffer.getLength();
 
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-      let arraybuffer = buffer.getMyChannelData(chIdx);
-      let length = buffer.getLength();
+      const arraybuffer = buffer.getMyChannelData(chIdx);
       let idx1 = 0;
       let idx2 = nSamplesPerInterval;
       meanSquares[chIdx] = [];
-      while (idx2 <= length) {
+      while (idx2 < length) {
         meanSquares[chIdx].push(this.getMeanSquare(arraybuffer, buffer, idx1, idx2));
         idx1 += nStepsize;
         idx2 += nStepsize;

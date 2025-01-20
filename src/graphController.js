@@ -5,6 +5,8 @@
  * author: Thomas Goepfert
  */
 
+import { Config } from './config.js';
+
 ('use strict');
 
 const GraphCtrl = (() => {
@@ -13,8 +15,9 @@ const GraphCtrl = (() => {
   // let dataseries = [[0, 0, 0, 0, 0, 0]];
   let dataseries = [[0, 0, 0, 0, 0]];
   let data = [];
-  let MAXDATAPOINTS = 5;
-  let MAXGRAPHENTRIES = 400;
+  const MAXDATAPOINTS = 5;
+  const MAXGRAPHENTRIES = 400;
+
   resetData();
 
   function createGraph(graphdiv) {
@@ -29,7 +32,7 @@ const GraphCtrl = (() => {
       labels: [
         'x',
         'Live Loudness',
-        'Loudness after gain control',
+        `Loudness after gain control T=${Config.maxT_recalc_loudness}s`,
         'Target Loudness',
         'Target Gain',
         // 'Mean Live Loudness',
@@ -62,12 +65,14 @@ const GraphCtrl = (() => {
         fistcall = false;
       }
       dataseries.push(data);
+      resetData();
     }
     if (dataseries.length > MAXGRAPHENTRIES) {
-      dataseries.splice(0, 1);
+      dataseries.splice(0, 1); // don't like that ... we should use a ringbuffer instead
     }
   }
 
+  // appends data if last entry has been set (not so cool)
   function setDataPoint(value, idx) {
     if (data[idx] != undefined) {
       console.log('WARNING: double fill?!!', idx);
@@ -92,6 +97,7 @@ const GraphCtrl = (() => {
     return true;
   }
 
+  // seems a bit over-engineered
   function resetData() {
     data = [];
     for (let idx = 0; idx < MAXDATAPOINTS; idx++) {

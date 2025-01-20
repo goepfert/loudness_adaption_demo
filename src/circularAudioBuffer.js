@@ -4,7 +4,7 @@
  * Custom made, not a general purpose ringbuffer
  * Construct with given length, concat buffer with a length that is an integer fraction of that length
  * Use getLength, getMyChannelData and getIndex to work with elements of that ringbuffer
- * Since it it used for loudness calculation, it saves the sqares and not only the values
+ * Since it it used for loudness calculation, it saves the squares and not only the values
  *
  * author: Thomas Goepfert
  */
@@ -27,7 +27,7 @@ class CircularAudioBuffer {
   }
 
   /**
-   * inspired by https://github.com/audiojs/is-audio-buffer
+   * Inspired by https://github.com/audiojs/is-audio-buffer
    */
   isAudioBuffer(buffer) {
     return (
@@ -64,10 +64,6 @@ class CircularAudioBuffer {
       this.head = 0;
       this.isFull = true;
     }
-
-    // console.log('new head:', this.head);
-    // console.log('fromBuffer', fromBuffer.getChannelData(0));
-    // console.log('myAudioBuffer', this.myAudioBuffer.getChannelData(0));
   }
 
   /**
@@ -102,9 +98,9 @@ class CircularAudioBuffer {
         internalIndex = hpi;
       } else {
         // modulo operation takes sometimes too much ressources, never found out why but flame graph says that this function takes a significant time
+        //internalIndex = hpi % this.length;
         // just taking the difference is working in this case since index should be smaller than length
         internalIndex = hpi - this.length;
-        //internalIndex = hpi % this.length;
       }
     } else {
       internalIndex = index;

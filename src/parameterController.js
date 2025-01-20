@@ -8,22 +8,22 @@
 ('use strict');
 
 const ParaCtrl = (() => {
-  let _interval = [0.2, 0.3, 0.4, 0.5];
+  const _interval = [0.2, 0.3, 0.4, 0.5];
   let _interval_idx = 2;
 
-  let _overlap = [0.25, 0.5, 0.75];
+  const _overlap = [0.25, 0.5, 0.75];
   let _overlap_idx = 2;
 
-  let _maxT = [2, 5, 10, 30, 60];
+  const _maxT = [2, 5, 10, 30, 60, 90];
   let _maxT_idx = 3;
 
-  let _defaultTargetLoudness = -13;
+  const _defaultTargetLoudness = -13;
   let _targetLoudness = undefined;
 
-  let _decay_increase = [0.2, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0];
+  const _decay_increase = [0.2, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0];
   let _decay_increase_idx = 2;
 
-  let _decay_decrease = [0.2, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0];
+  const _decay_decrease = [0.2, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0];
   let _decay_decrease_idx = 6;
 
   let loop = true;
