@@ -47,7 +47,7 @@ class CircularAudioBuffer {
    * Copy data from fromBuffer to myAudioBuffer at head position
    */
   concat(fromBuffer) {
-    this.validate(fromBuffer);
+    // this.validate(fromBuffer);
 
     //copy data from fromBuffer at head Position in myAudioBuffer
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
@@ -56,7 +56,8 @@ class CircularAudioBuffer {
       //save the squares
       let channelData = fromBuffer.getChannelData(chIdx);
       channelData = channelData.map((value) => Math.pow(value, 2));
-      this.myAudioBuffer.getChannelData(chIdx).set(channelData, this.head);
+      // this.myAudioBuffer.getChannelData(chIdx).set(channelData, this.head);
+      this.myAudioBuffer.copyToChannel(channelData, chIdx, this.head);
     }
 
     this.head += fromBuffer.length;

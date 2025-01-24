@@ -11,6 +11,7 @@
 
 import BiquadFilter_DF2 from './biquadfilter_df2.js';
 import CircularAudioBuffer from './circularAudioBuffer.js';
+import Utils from './utils.js';
 
 ('use strict');
 
@@ -121,7 +122,6 @@ class LoudnessSample {
   onProcess(audioProcessingEvent) {
     this.blocked = true;
     this.nCall++;
-
     let inputBuffer = audioProcessingEvent.inputBuffer;
     let outputBuffer = audioProcessingEvent.outputBuffer;
 
@@ -141,6 +141,15 @@ class LoudnessSample {
 
     let time = (this.nCall * inputBuffer.length) / this.sampleRate;
     let gl = this.calculateLoudness(outputBuffer);
+
+    // Utils.sleep_ms(10);
+
+    // if (this.copybuffer.getHead() % (4 * 4096) == 0 && this.id == 1) {
+    //   console.log('🚀 ~ LoudnessSample ~ calculateLoudness ~ this.copybuffer.getHead():', this.copybuffer.getHead());
+    //   console.log(this.id, '- gatedLoudness:', time, gl);
+    //   // this.copybuffer.dump();
+    // }
+
     this.callback(time, gl);
 
     this.blocked = false;
@@ -155,6 +164,7 @@ class LoudnessSample {
       // how long should the copybuffer be at least?
       // --> at least maxT should fit in and length shall be an integer fraction of buffer length
       const length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer.length + 1) * buffer.length;
+      // console.log('🚀 ~ LoudnessSample ~ calculateLoudness ~ length:', length);
       this.copybuffer = new CircularAudioBuffer(this.context, this.nChannels, length, this.sampleRate);
     }
 

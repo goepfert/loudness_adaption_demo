@@ -12,7 +12,6 @@ import { Config } from './config.js';
 const GraphCtrl = (() => {
   let graph = undefined;
   let fistcall = true;
-  // let dataseries = [[0, 0, 0, 0, 0, 0]];
   let dataseries = [[0, 0, 0, 0, 0]];
   let data = [];
   const MAXDATAPOINTS = 5;
@@ -35,7 +34,6 @@ const GraphCtrl = (() => {
         `Loudness after gain control T=${Config.maxT_recalc_loudness}s`,
         'Target Loudness',
         'Target Gain',
-        // 'Mean Live Loudness',
       ],
       //labelsDivWidth: 100,
       labelsSeparateLines: true,
@@ -75,7 +73,7 @@ const GraphCtrl = (() => {
   // appends data if last entry has been set (not so cool)
   function setDataPoint(value, idx) {
     if (data[idx] != undefined) {
-      console.log('WARNING: double fill?!!', idx);
+      // console.log('WARNING: double fill?!!', idx);
     }
     data[idx] = value;
     if (idx == MAXDATAPOINTS - 1) {
@@ -90,7 +88,7 @@ const GraphCtrl = (() => {
     //console.log('validating data:', data);
     for (let idx = 0; idx < data.length; idx++) {
       if (data[idx] == undefined || isNaN(data[idx])) {
-        console.log('some invalid data for plotting .. skip:', data);
+        // console.log('some invalid data for plotting .. skip:', data);
         return false;
       }
     }
@@ -108,7 +106,6 @@ const GraphCtrl = (() => {
   // empty data (label, value)
   function resetGraph() {
     if (graph != undefined) {
-      // dataseries = [[0, 0, 0, 0, 0, 0]];
       dataseries = [[0, 0, 0, 0, 0]];
       fistcall = true;
       resetData();

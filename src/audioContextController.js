@@ -13,7 +13,7 @@ import { Config } from './config.js';
 
 ('use strict');
 
-function createAudioCtxCtrl(audioContext, buffer, callback) {
+function createAudioCtxCtrl(audioContext, buffer) {
   let targetLKFS = ParaCtrl.getTargetLoudness();
   const startGain = 1.0;
   let targetGain = 1.0;
@@ -36,17 +36,34 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
   let loudnessSample = undefined;
   let loudnessSample_control = undefined;
 
-  let nHistoryLoudness = 0;
-  let loudnessHistory = [];
+  // Callback called at the end of onProcess
+  function callback_loudness(time, loudness) {
+    timer_time = time;
+    loudness = Number(loudness.toFixed(2));
 
-  // not so nice, the other callback is defined in the app controller :(
-  // but I'll leave it here
-  function callback_control(time, loudness) {
-    if (Config.debug) {
-      time = getCurrentTime();
-      console.log('control: playtime / measured gated loudness: ', time, ' / ', loudness);
+    const currentTime = Number(audioContext.currentTime.toFixed(2));
+    console.log(
+      'playtime / timer_time / measured gated loudness: ',
+      currentTime,
+      ' / ',
+      Number(timer_time.toFixed(2)),
+      ' / ',
+      loudness
+    );
+
+    if (isNaN(loudness)) {
+      //loudness = ParaCtrl.getDefaultTargetLoudness();
     }
 
+    GraphCtrl.setDataPoint(Number(timer_time.toFixed(2)), 0);
+    GraphCtrl.setDataPoint(loudness, 1);
+    if (!isNaN(loudness)) {
+      applyGain(loudness);
+    }
+  }
+
+  // Callback called at the end of onProcess
+  function callback_loudness_control(time, loudness) {
     // plot something even if retrieved values are unreasonable
     if (isNaN(loudness)) {
       loudness = ParaCtrl.getDefaultTargetLoudness();
@@ -62,14 +79,13 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
 
     UICtrl.disableLoudnessControl();
     if (loudnessSample == undefined) {
-      loudnessSample = new LoudnessSample(audioContext, buffer, callback, ParaCtrl.getLoudnessProperties(), 1);
+      loudnessSample = new LoudnessSample(audioContext, buffer, callback_loudness, ParaCtrl.getLoudnessProperties(), 1);
     }
     if (loudnessSample_control == undefined) {
       loudnessSample_control = new LoudnessSample(
         audioContext,
         buffer,
-        callback_control,
-        // ParaCtrl.getLoudnessProperties(),
+        callback_loudness_control,
         {
           interval: 0.4,
           overlap: 0.75,
@@ -79,9 +95,8 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
       );
     }
 
-    nHistoryLoudness = (ParaCtrl.getmaxT().maxT[ParaCtrl.getmaxT().maxT_idx] * buffer.sampleRate) / bufferSize;
-
     let offset = pausedAt;
+    console.log('🚀 ~ play ~ offset:', offset);
     source = audioContext.createBufferSource();
     source.buffer = buffer;
     sp_loudness = audioContext.createScriptProcessor(bufferSize, buffer.numberOfChannels, buffer.numberOfChannels);
@@ -104,7 +119,6 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
     source.connect(gain);
     gain.connect(sp_loudness_control);
     gain.connect(audioContext.destination);
-    // source.connect(audioContext.destination);
 
     meter = createAudioMeter(audioContext, buffer.numberOfChannels, 0.98, 0.95, 250);
     gain.connect(meter);
@@ -128,14 +142,9 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
   function stop() {
     commonStop();
     // saw sometimes inconsistent data when not rebuilding loudness ... never found out why :(
-    //loudnessSample.resetMemory();
-    //loudnessSample_control.resetMemory();
     loudnessSample = undefined;
     loudnessSample_control = undefined;
     targetGain = startGain;
-
-    loudnessHistory = [];
-
     UICtrl.enableLoudnessControl();
   }
 
@@ -178,20 +187,6 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
       return;
     }
 
-    loudnessHistory.push(loudness);
-    if (loudnessHistory.length > nHistoryLoudness) {
-      loudnessHistory.splice(0, 1);
-    }
-
-    let meanLoudness = 0;
-    for (let idx = 0; idx < loudnessHistory.length; idx++) {
-      meanLoudness += loudnessHistory[idx];
-    }
-    meanLoudness /= loudnessHistory.length;
-    // GraphCtrl.setDataPoint(meanLoudness, 5);
-
-    //console.log('max / length / loudness / mean', nHistoryLoudness, loudnessHistory.length, loudness, meanLoudness);
-
     // TODO: well, this looks ugly
     decay_decrease = ParaCtrl.getDecayDecrease().decay_decrease[ParaCtrl.getDecayDecrease().decay_decrease_idx];
     decay_increase = ParaCtrl.getDecayIncrease().decay_increase[ParaCtrl.getDecayIncrease().decay_increase_idx];
@@ -233,11 +228,12 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
     if (loudnessSample != undefined) {
       loudnessSample.resetBuffer();
     }
+    if (loudnessSample_control != undefined) {
+      loudnessSample_control.resetBuffer();
+    }
     if (gain != undefined) {
       gain.gain.setValueAtTime(startGain, audioContext.currentTime);
     }
-
-    loudnessHistory = [];
   }
 
   function setLoop() {
@@ -255,7 +251,7 @@ function createAudioCtxCtrl(audioContext, buffer, callback) {
     getCurrentTime: getCurrentTime,
     getDuration: getDuration,
     getPlaying: getPlaying,
-    applyGain: applyGain,
+    // applyGain: applyGain,
     play: play,
     pause: pause,
     stop: stop,

@@ -21,8 +21,31 @@ const Utils = (() => {
     }
   }
 
+  function checkTime(i) {
+    return i < 10 ? '0' + i : i;
+  }
+
+  function getTime() {
+    let today = new Date(),
+      h = checkTime(today.getHours()),
+      m = checkTime(today.getMinutes()),
+      s = checkTime(today.getSeconds()),
+      ms = checkTime(today.getMilliseconds());
+    return `${h}:${m}:${s}:${ms}`;
+  }
+
+  function sleep_ms(milliseconds) {
+    const date = Date.now();
+    let currentDate = null;
+    do {
+      currentDate = Date.now();
+    } while (currentDate - date < milliseconds);
+  }
+
   return {
     assert,
+    getTime,
+    sleep_ms,
   };
 })();
 

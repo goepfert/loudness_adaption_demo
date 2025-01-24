@@ -29,8 +29,6 @@ const MainApp = (() => {
   function init() {
     console.log('initializing app ...');
 
-    audioContext = new AudioContext();
-
     // Get UI selectors
     const UISelectors = UICtrl.getSelectors();
 
@@ -124,6 +122,8 @@ const MainApp = (() => {
 
   // loads and decodes file asynchronically and starts off a lot of other stuff
   function handleFileSelect(evt) {
+    audioContext = new AudioContext();
+
     let file = evt.target.files[0];
     console.log(file);
     let reader = new FileReader();
@@ -135,7 +135,7 @@ const MainApp = (() => {
         if (audioCtxCtrl != undefined) {
           audioCtxCtrl.stop();
         }
-        audioCtxCtrl = createAudioCtxCtrl(audioContext, decodedData, getLoudness);
+        audioCtxCtrl = createAudioCtxCtrl(audioContext, decodedData);
 
         //unblock control and graph
         document.getElementById('controlbuttons').style.display = 'block';
@@ -157,30 +157,6 @@ const MainApp = (() => {
       });
     };
     reader.readAsArrayBuffer(file);
-  }
-
-  /**
-   * Callback called at the end of onProcess
-   */
-  function getLoudness(time, loudness) {
-    if (Config.debug) {
-      time = Number(audioCtxCtrl.getCurrentTime().toFixed(2));
-      console.log('playtime / measured gated loudness: ', time, ' / ', loudness);
-    }
-
-    time = Number(audioCtxCtrl.getCurrentTime().toFixed(2));
-    //time = Number(time.toFixed(2));
-    loudness = Number(loudness.toFixed(2));
-
-    if (isNaN(loudness)) {
-      //loudness = ParaCtrl.getDefaultTargetLoudness();
-    }
-
-    GraphCtrl.setDataPoint(time, 0);
-    GraphCtrl.setDataPoint(loudness, 1);
-    if (!isNaN(loudness)) {
-      audioCtxCtrl.applyGain(loudness);
-    }
   }
 
   /**
