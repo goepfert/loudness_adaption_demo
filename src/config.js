@@ -3,8 +3,10 @@
  */
 
 const Config = {
-  debug: false,
-  maxT_recalc_loudness: 8,
+  debug: true,
+  maxT_loudness_idx: 2,
+  maxT_recalc_loudness: 4,
+  defaultTargetLoudness: -23,
 };
 
 export { Config };

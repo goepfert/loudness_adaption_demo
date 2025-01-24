@@ -6,6 +6,7 @@
  */
 
 import { Config } from './config.js';
+import ParaCtrl from './parameterController.js';
 
 ('use strict');
 
@@ -15,7 +16,17 @@ const GraphCtrl = (() => {
   let dataseries = [[0, 0, 0, 0, 0]];
   let data = [];
   const MAXDATAPOINTS = 5;
-  const MAXGRAPHENTRIES = 400;
+  const MAXGRAPHENTRIES = 200;
+
+  function createLabel() {
+    return [
+      'x',
+      `Live Loudness T=${ParaCtrl.getmaxT().maxT[ParaCtrl.getmaxT().maxT_idx]}s`, // würg, aber geht
+      `Loudness after gain control T=${Config.maxT_recalc_loudness}s`,
+      'Target Loudness',
+      'Target Gain',
+    ];
+  }
 
   resetData();
 
@@ -28,13 +39,7 @@ const GraphCtrl = (() => {
       labelsKMB: true,
       highlightSeriesOpts: { strokeWidth: 2 },
       legend: 'always',
-      labels: [
-        'x',
-        'Live Loudness',
-        `Loudness after gain control T=${Config.maxT_recalc_loudness}s`,
-        'Target Loudness',
-        'Target Gain',
-      ],
+      labels: createLabel(),
       //labelsDivWidth: 100,
       labelsSeparateLines: true,
       series: {
@@ -119,15 +124,16 @@ const GraphCtrl = (() => {
       graph.updateOptions({
         file: dataseries,
         //dateWindow: [0, dataseries[dataseries.length - 1][0]] //to plot from zero
+        labels: createLabel(),
       });
     }
   }
 
   return {
-    createGraph: createGraph,
-    setDataPoint: setDataPoint,
-    resetGraph: resetGraph,
-    updateGraph: updateGraph,
+    createGraph,
+    setDataPoint,
+    resetGraph,
+    updateGraph,
   };
 })();
 

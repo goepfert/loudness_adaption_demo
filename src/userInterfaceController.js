@@ -145,13 +145,13 @@ const UICtrl = (() => {
 
   // Public methods
   return {
-    showFileProps: showFileProps,
-    showLoudnessProps: showLoudnessProps,
-    applyLoudnessProps: applyLoudnessProps,
-    applyGainProps: applyGainProps,
-    getSelectors: getSelectors,
-    disableLoudnessControl: disableLoudnessControl,
-    enableLoudnessControl: enableLoudnessControl,
+    showFileProps,
+    showLoudnessProps,
+    applyLoudnessProps,
+    applyGainProps,
+    getSelectors,
+    disableLoudnessControl,
+    enableLoudnessControl,
   };
 })();
 

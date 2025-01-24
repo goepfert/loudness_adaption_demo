@@ -11,7 +11,6 @@
 
 import BiquadFilter_DF2 from './biquadfilter_df2.js';
 import CircularAudioBuffer from './circularAudioBuffer.js';
-import Utils from './utils.js';
 
 ('use strict');
 
@@ -31,7 +30,6 @@ class LoudnessSample {
     this.gamma_a = -70; // LKFS
     this.copybuffer = undefined; // 'history' circular audiobuffer
     this.once = true; // some logging
-    this.nCall = 0; // how many chunks processed so far
 
     this.nChannels = buffer.numberOfChannels;
     this.sampleRate = buffer.sampleRate;
@@ -97,7 +95,6 @@ class LoudnessSample {
 
   resetMemory() {
     this.resetBuffer();
-    this.nCall = 0;
   }
 
   /**
@@ -121,7 +118,6 @@ class LoudnessSample {
    */
   onProcess(audioProcessingEvent) {
     this.blocked = true;
-    this.nCall++;
     let inputBuffer = audioProcessingEvent.inputBuffer;
     let outputBuffer = audioProcessingEvent.outputBuffer;
 
@@ -139,19 +135,8 @@ class LoudnessSample {
       }
     } // next channel
 
-    let time = (this.nCall * inputBuffer.length) / this.sampleRate;
-    let gl = this.calculateLoudness(outputBuffer);
-
-    // Utils.sleep_ms(10);
-
-    // if (this.copybuffer.getHead() % (4 * 4096) == 0 && this.id == 1) {
-    //   console.log('🚀 ~ LoudnessSample ~ calculateLoudness ~ this.copybuffer.getHead():', this.copybuffer.getHead());
-    //   console.log(this.id, '- gatedLoudness:', time, gl);
-    //   // this.copybuffer.dump();
-    // }
-
-    this.callback(time, gl);
-
+    const gatedLoudness = this.calculateLoudness(outputBuffer);
+    this.callback(gatedLoudness);
     this.blocked = false;
   }
 
@@ -164,7 +149,6 @@ class LoudnessSample {
       // how long should the copybuffer be at least?
       // --> at least maxT should fit in and length shall be an integer fraction of buffer length
       const length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer.length + 1) * buffer.length;
-      // console.log('🚀 ~ LoudnessSample ~ calculateLoudness ~ length:', length);
       this.copybuffer = new CircularAudioBuffer(this.context, this.nChannels, length, this.sampleRate);
     }
 
@@ -206,12 +190,10 @@ class LoudnessSample {
         mean += meanSquares[chIdx][idx];
       }
       mean /= meanSquares[chIdx].length;
-
       gatedLoudness += this.channelWeight[chIdx] * mean;
     }
     gatedLoudness = -0.691 + 10.0 * Math.log10(gatedLoudness);
 
-    //console.log(this.id, '- gatedLoudness:', gatedLoudness);
     return gatedLoudness;
   }
 

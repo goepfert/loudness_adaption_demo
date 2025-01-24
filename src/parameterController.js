@@ -5,6 +5,9 @@
  * author: Thomas Goepfert
  */
 
+import { Config } from './config.js';
+import Utils from './utils.js';
+
 ('use strict');
 
 const ParaCtrl = (() => {
@@ -14,17 +17,18 @@ const ParaCtrl = (() => {
   const _overlap = [0.25, 0.5, 0.75];
   let _overlap_idx = 2;
 
-  const _maxT = [2, 5, 10, 30, 60, 90];
-  let _maxT_idx = 3;
+  const _maxT = [2, 4, 8, 16, 32, 64, 84];
+  let _maxT_idx = Config.maxT_loudness_idx;
+  Utils.assert(_maxT_idx < _maxT.length, `Index out of range for _maxT: ${_maxT_idx}, ${_maxT.length}`);
 
-  const _defaultTargetLoudness = -13;
+  const _defaultTargetLoudness = Config.defaultTargetLoudness;
   let _targetLoudness = undefined;
 
   const _decay_increase = [0.2, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0];
   let _decay_increase_idx = 2;
 
   const _decay_decrease = [0.2, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0];
-  let _decay_decrease_idx = 6;
+  let _decay_decrease_idx = 4;
 
   let loop = true;
   let applyGainCorrection = true;
@@ -130,22 +134,22 @@ const ParaCtrl = (() => {
   }
 
   return {
-    getLoudnessProperties: getLoudnessProperties,
-    setLoudnessProperties_idx: setLoudnessProperties_idx,
-    getInterval: getInterval,
-    getOverlap: getOverlap,
-    getmaxT: getmaxT,
-    getDefaultTargetLoudness: getDefaultTargetLoudness,
-    setTargetLoudness: setTargetLoudness,
-    getTargetLoudness: getTargetLoudness,
-    getGainProperties: getGainProperties,
-    getDecayIncrease: getDecayIncrease,
-    getDecayDecrease: getDecayDecrease,
-    setGainProperties_idx: setGainProperties_idx,
-    setLoop: setLoop,
-    getLoop: getLoop,
-    setApplyGainCorrection: setApplyGainCorrection,
-    getApplyGainCorrection: getApplyGainCorrection,
+    getLoudnessProperties,
+    setLoudnessProperties_idx,
+    getInterval,
+    getOverlap,
+    getmaxT,
+    getDefaultTargetLoudness,
+    setTargetLoudness,
+    getTargetLoudness,
+    getGainProperties,
+    getDecayIncrease,
+    getDecayDecrease,
+    setGainProperties_idx,
+    setLoop,
+    getLoop,
+    setApplyGainCorrection,
+    getApplyGainCorrection,
   };
 })();
 

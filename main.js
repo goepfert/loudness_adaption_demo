@@ -10,7 +10,6 @@ import ParaCtrl from './src/parameterController.js';
 import GraphCtrl from './src/graphController.js';
 import UICtrl from './src/userInterfaceController.js';
 import { createAudioCtxCtrl } from './src/audioContextController.js';
-import { Config } from './src/config.js';
 
 ('use strict');
 
@@ -44,6 +43,7 @@ const MainApp = (() => {
     document.getElementById('loudness_form').addEventListener('change', (e) => {
       UICtrl.applyLoudnessProps();
       console.log(ParaCtrl.getLoudnessProperties());
+      GraphCtrl.updateGraph();
       e.preventDefault();
     });
 
@@ -130,8 +130,6 @@ const MainApp = (() => {
     reader.onload = function () {
       let arrayBuffer = reader.result;
       audioContext.decodeAudioData(arrayBuffer).then(function (decodedData) {
-        //console.log(decodedData);
-
         if (audioCtxCtrl != undefined) {
           audioCtxCtrl.stop();
         }
@@ -166,11 +164,11 @@ const MainApp = (() => {
   function updateAnimationFrame() {
     // playtime / duration
     if (info != undefined) {
-      info.innerHTML = audioCtxCtrl.getCurrentTime().toFixed(1) + '/' + audioCtxCtrl.getDuration().toFixed(1);
+      info.innerHTML = audioCtxCtrl.getCurrentPlayTime().toFixed(1) + '/' + audioCtxCtrl.getDuration().toFixed(1);
     }
 
     // if not in loop, pause at the end, avoid toggling
-    if (!ParaCtrl.getLoop() && somebool && audioCtxCtrl.getCurrentTime() >= audioCtxCtrl.getDuration()) {
+    if (!ParaCtrl.getLoop() && somebool && audioCtxCtrl.getCurrentPlayTime() >= audioCtxCtrl.getDuration()) {
       let playbtn = document.getElementById(UICtrl.getSelectors().playPauseButton);
       playPauseButton(playbtn);
       somebool = false;
@@ -210,8 +208,7 @@ const MainApp = (() => {
 
   // Public methods
   return {
-    init: init,
-    // updateAnimationFrame: updateAnimationFrame,
+    init,
   };
 })();
 
