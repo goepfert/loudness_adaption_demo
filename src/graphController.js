@@ -15,9 +15,10 @@ const GraphCtrl = (() => {
   let fistcall = true;
   let dataseries = [[0, 0, 0, 0, 0]];
   let data = [];
-  const MAXDATAPOINTS = 5;
+  const MAXDATAPOINTS = 5; // 1 x and 4 y-values
   const MAXGRAPHENTRIES = 200;
 
+  // If some parameters has been changed, the label needs to be adjusted accordingly
   function createLabel() {
     return [
       'x',
@@ -60,7 +61,7 @@ const GraphCtrl = (() => {
     });
   }
 
-  // pushes new data to graph
+  // pushes new data to the graph
   function appendData(data) {
     if (graph != undefined) {
       if (fistcall) {
@@ -71,7 +72,7 @@ const GraphCtrl = (() => {
       resetData();
     }
     if (dataseries.length > MAXGRAPHENTRIES) {
-      dataseries.splice(0, 1); // don't like that ... we should use a ringbuffer instead
+      dataseries.splice(0, 1); // don't like that ... can we use a ringbuffer instead (puh, at least not that obvious in first place)
     }
   }
 

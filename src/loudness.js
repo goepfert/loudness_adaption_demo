@@ -1,7 +1,5 @@
 /**
- * WebAudio JS implementation of Loudness Calculation based on
- * https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-4-201510-I%21%21PDF-E.pdf
- * https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BS.2217-2-2016-PDF-E.pdf
+ * WebAudio JS implementation of Loudness Calculation based on ITU-R BS.1770
  *
  * Possible performance optimizations:
  *  - don't copy the whole audiobuffer but just save save meansqares (or further calculations) of the intervals
@@ -41,7 +39,7 @@ class LoudnessSample {
     this.bypass = false; // bypass PrestageFilters, testing purpose
 
     // Pre Stage Filter Coefficient for Direct2 Norm
-    // parameters given in https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-4-201510-I%21%21PDF-E.pdf
+    // parameters given in ITU-R BS.1770
     // gain, high shelving, high-pass
     let coef = [
       1.0, 1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, 0.73248077421585, 1.0, -2.0, 1.0,
@@ -102,7 +100,7 @@ class LoudnessSample {
    * can be used to mimic a fresh start of the loudness calculation (e.g. a track change)
    */
   resetBuffer() {
-    while (this.blocked == true) {} // muchos dangerous ...
+    while (this.blocked == true) {} // muchos dangerous ... (not really sure if this is still needed)
     if (this.copybuffer != undefined) {
       this.copybuffer.length = 0;
       this.copybuffer = undefined;
@@ -128,7 +126,7 @@ class LoudnessSample {
       if (!this.bypass) {
         this.PreStageFilter[chIdx].process(inputData, outputData);
       } else {
-        // just copy
+        // or just copy
         for (let sample = 0; sample < inputBuffer.length; sample++) {
           outputData[sample] = inputData[sample];
         }

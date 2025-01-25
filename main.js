@@ -177,7 +177,7 @@ const MainApp = (() => {
     // volume audio meter
     if (canvasContext != undefined) {
       canvasContext.clearRect(0, 0, WIDTH, HEIGHT);
-      let meter = audioCtxCtrl.getMeter();
+      const meter = audioCtxCtrl.getMeter();
       if (meter != undefined) {
         // check if we're currently clipping
         if (meter.checkClipping()) {
@@ -186,7 +186,7 @@ const MainApp = (() => {
           canvasContext.fillStyle = 'green';
         }
         // draw a bar based on the current volume
-        let nChannels = meter.volume.length;
+        const nChannels = meter.volume.length;
         for (let chIdx = 0; chIdx < nChannels; chIdx++) {
           canvasContext.fillRect(
             (WIDTH / nChannels) * chIdx,

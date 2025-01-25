@@ -21,7 +21,12 @@ function createAudioCtxCtrl(audioContext, buffer) {
   let decay_decrease = undefined;
   let decay_increase = undefined;
 
-  const bufferSize = 2 * 4096;
+  // Don't go too low with buffersize, saw some 'strange' or not expected things, like
+  // - number of process samples * sample rate smaller than playtime
+  // which accumulates over time.
+  // I believe that onprocess is not called with the proper samplerate and there is some sample rate conversion
+  // happening under the hood.
+  const bufferSize = 2 * 4096; // about 1/2 seconds for 48 kHz sampling rate
   let sp_loudness = undefined;
   let sp_loudness_control = undefined;
   let source = undefined;
@@ -96,7 +101,6 @@ function createAudioCtxCtrl(audioContext, buffer) {
 
     // output unfiltered data
     gain = audioContext.createGain();
-
     gain.gain.setValueAtTime(targetGain, audioContext.currentTime); //?
 
     // measure again after gain control
@@ -111,7 +115,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
     gain.connect(sp_loudness_control);
     gain.connect(audioContext.destination);
 
-    meter = createAudioMeter(audioContext, buffer.numberOfChannels, 0.98, 0.95, 250);
+    meter = createAudioMeter(audioContext, buffer.numberOfChannels, 0.98, 0.95, Config.audioMeter_cliLag);
     gain.connect(meter);
 
     source.start(0, pausedAt);
@@ -120,8 +124,6 @@ function createAudioCtxCtrl(audioContext, buffer) {
     startedAt = audioContext.currentTime - pausedAt;
     pausedAt = 0;
     isPlaying = true;
-
-    // App.updateAnimationFrame();
   }
 
   function pause() {
@@ -162,6 +164,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
   }
 
   function getCurrentPlayTime() {
+    // mainly for displaying of current playtime
     if (pausedAt != 0) {
       return pausedAt;
     }
@@ -182,7 +185,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
       return;
     }
 
-    // TODO: well, this looks ugly
+    // well well ... this looks ugly
     decay_decrease = ParaCtrl.getDecayDecrease().decay_decrease[ParaCtrl.getDecayDecrease().decay_decrease_idx];
     decay_increase = ParaCtrl.getDecayIncrease().decay_increase[ParaCtrl.getDecayIncrease().decay_increase_idx];
     targetLKFS = ParaCtrl.getTargetLoudness();

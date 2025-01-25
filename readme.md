@@ -1,17 +1,19 @@
 # Live Dynamic Loudness Demo
-- Algorithm based on [ITU-R BS.1770-5](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-5-202311-I!!PDF-E.pdf)
+- Algorithm based on [ITU-R BS.1770](https://www.itu.int/rec/R-REC-BS.1770)
+  - At time of wrinting, version 5 (11/2023) was the latest
 - Implemented in plain javascript using Web Audio API
 
 
 ## Usage
 - Clone repository and open *index.html* file in Browser (tested with FF 60.1.0esr) or start webserver
-- Audio files sample including test files from [ITU-R-BS.2217](https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BS.2217-2-2016-PDF-E.pdf) and a couple of others located under /files subdirectory
+- Audio files sample including test files from [ITU-R-BS.2217](https://www.itu.int/pub/R-REP-BS.2217) and a couple of others located under /files subdirectory
+  -   - At time of wrinting, version 2 (10/2016) was the latest
 - Open audio file via *Select File* Button
   - Depending on the files size and format this may take a little
 - Adjust parameters if needed and *Play*
 - You can also *Reset Loudness Calculation*. Can e.g. simulate some artificial track change while playing
 - Or visit github pages: https://goepfert.github.io/loudness_adaption_demo/
-  - But you would probably need some audio files from this repo
+  - But you would probably need some audio files (e.g. from this repo)
 
 ## Remarks
 Certainly needs some more testing if properly implemented, but doesn't look so bad in the first place.
@@ -25,7 +27,7 @@ The file (stream) will be segmented in time intervals of given size. This is the
 The Intervals can overlap each other. Defaults to 75%.
 
 **Window Size**
-How many seconds the algorithm shall look back if enough data is available.
+How many seconds the algorithm shall look back if enough data is available. Defaults to 8 seconds
 
 
 ## Signal Flow
@@ -37,7 +39,7 @@ AudioBufferSource -> Live Loudness Calculation (Web Audio Script Processor)\
 
 ## What is plotted
 **Live Loudness**
-The current calculated loudness from the start of the file (if not in loop) or since last reset (Button: *Reset Loudness Calculation*). The total time is limited to the Window Size parameter (default: 30 seconds).
+The current calculated loudness from the start of the file (if not in loop) or since last reset (Button: *Reset Loudness Calculation*). The total time is limited to the Window Size parameter.
 
 **Target Loudness**
 The target loudness in LKFS before any audio processing.
@@ -47,7 +49,7 @@ The gain to compensate the difference between *Live Loudness* and *Target Loudne
 *Remark*: There is no clipping control implemented.
 
 **Loudness after gain control**
-The Loudness is (re)calculted after setting the target gain with a fixed Window Size of the same as for Live Loudness calculation.
+The Loudness is (re)calculted after setting the target gain with a fixed Window Size that can be different as for Live Loudness calculation.
 
 
 ## Volume Meter
@@ -57,3 +59,4 @@ A simple attempt to check if there is clipping. It checks if there are samples w
 - Have a look into the true-peak audio level section of ITU-R BS.1770-5
 - Implement and test multi-channel audio (besides stereo)
 - Check further files
+- Go away from deprecated ScriptProcessorNode
