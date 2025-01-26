@@ -19,7 +19,7 @@ export default class BiquadFilter_DF2 {
 
   /**
    * Set biquad filter coefficients
-   * coef Array of biquad coefficients in the following order: gain, firstBiquad b0, firstBiquad b1, firstBiquad b2, firstBiquad a1, firstBiquad a2, secondBiquad b0, secondBIquad b1, etc.
+   * @param {number[]} coef - Array of biquad coefficients in the following order: gain, firstBiquad b0, firstBiquad b1, firstBiquad b2, firstBiquad a1, firstBiquad a2, secondBiquad b0, secondBIquad b1, etc.
    */
   setCoefficients(coef) {
     if (coef) {
@@ -51,6 +51,8 @@ export default class BiquadFilter_DF2 {
 
   /**
    * Get the number of cascade filters from the list of coefficients
+   * @param {number[]} coef - Array of biquad coefficients
+   * @returns {number} - Number of cascade filters
    */
   getNumberOfCascadeFilters(coef) {
     return (coef.length - 1) / 5;
@@ -70,8 +72,8 @@ export default class BiquadFilter_DF2 {
 
   /**
    * Calculate the output of the cascade of biquad filters for an inputBuffer.
-   * inputBuffer: array of the same length of outputBuffer
-   * outputBuffer: array of the same length of inputBuffer
+   * @param {Float32Array} inputBuffer - Array of the same length as outputBuffer
+   * @param {Float32Array} outputBuffer - Array of the same length as inputBuffer
    */
   process(inputBuffer, outputBuffer) {
     let x;
@@ -102,7 +104,7 @@ export default class BiquadFilter_DF2 {
       this.memories[0].wi2 = this.memories[0].wi1;
       this.memories[0].wi1 = w;
 
-      //Other Biquads in Cascade
+      // Other Biquads in Cascade
       for (let cascadeIdx = 1; cascadeIdx < this.numberOfCascade; cascadeIdx++) {
         b0 = this.coefficients[cascadeIdx].b0;
         b1 = this.coefficients[cascadeIdx].b1;
@@ -125,5 +127,3 @@ export default class BiquadFilter_DF2 {
     } // next buffer element
   } // end process
 }
-
-// export default BiquadFilter_DF2;

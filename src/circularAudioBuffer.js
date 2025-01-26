@@ -10,6 +10,13 @@
  */
 
 class CircularAudioBuffer {
+  /**
+   * Create a circular audio buffer.
+   * @param {AudioContext} context - The audio context.
+   * @param {number} nChannels - The number of channels.
+   * @param {number} length - The length of the buffer.
+   * @param {number} sampleRate - The sample rate.
+   */
   constructor(context, nChannels, length, sampleRate) {
     this.myAudioBuffer = context.createBuffer(nChannels, length, sampleRate);
     this.nChannels = nChannels;
@@ -19,6 +26,11 @@ class CircularAudioBuffer {
     this.isFull = false;
   }
 
+  /**
+   * Validate if the buffer is a valid AudioBuffer instance.
+   * @param {AudioBuffer} buffer - The buffer to validate.
+   * @throws Will throw an error if the buffer is not valid.
+   */
   validate(buffer) {
     if (!this.isAudioBuffer(buffer)) {
       console.log(buffer);
@@ -27,7 +39,9 @@ class CircularAudioBuffer {
   }
 
   /**
-   * Inspired by https://github.com/audiojs/is-audio-buffer
+   * Check if the buffer is a valid AudioBuffer instance.
+   * @param {AudioBuffer} buffer - The buffer to check.
+   * @returns {boolean} True if the buffer is valid, false otherwise.
    */
   isAudioBuffer(buffer) {
     return (
@@ -38,25 +52,21 @@ class CircularAudioBuffer {
       typeof buffer.duration === 'number' &&
       buffer.numberOfChannels === this.nChannels &&
       buffer.sampleRate === this.sampleRate &&
-      this.length % buffer.length === 0 && // fromBuffer.length must be integer fraction of myAudioBuffer.length
-      this.length - this.head >= buffer.length
-    ); // still fits?
+      buffer.length <= this.length - this.head // buffer length should fit in the remaining space
+    );
   }
 
   /**
-   * Copy data from fromBuffer to myAudioBuffer at head position
+   * Copy data from fromBuffer to myAudioBuffer at head position.
+   * @param {AudioBuffer} fromBuffer - The buffer to copy data from.
    */
   concat(fromBuffer) {
+    // de-activated for now to save some ressources
     // this.validate(fromBuffer);
 
-    //copy data from fromBuffer at head Position in myAudioBuffer
+    // Copy data from fromBuffer at head position in myAudioBuffer
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-      //this.myAudioBuffer.getChannelData(chIdx).set(fromBuffer.getChannelData(chIdx), this.head);
-
-      //save the squares
-      let channelData = fromBuffer.getChannelData(chIdx);
-      channelData = channelData.map((value) => Math.pow(value, 2));
-      // this.myAudioBuffer.getChannelData(chIdx).set(channelData, this.head);
+      let channelData = fromBuffer.getChannelData(chIdx).map((value) => Math.pow(value, 2));
       this.myAudioBuffer.copyToChannel(channelData, chIdx, this.head);
     }
 
@@ -68,39 +78,42 @@ class CircularAudioBuffer {
   }
 
   /**
-   * get length of valid data
-   * only smaller than total length if not 'full'
+   * Get the length of valid data.
+   * @returns {number} The length of valid data.
    */
   getLength() {
-    let length;
-    if (this.isFull) {
-      length = this.length;
-    } else {
-      length = this.head;
-    }
-
-    return length;
+    return this.isFull ? this.length : this.head;
   }
 
   /**
-   * returns ArrayBuffer of given channel
-   * use index from getIndex(index) and length from getLength
+   * Get the channel data of the buffer.
+   * @param {number} channel - The channel index.
+   * @returns {Float32Array} The channel data.
    */
   getMyChannelData(channel) {
-    return this.myAudioBuffer.getChannelData(channel);
+    if (channel < 0 || channel >= this.nChannels) {
+      throw new Error('Invalid channel index');
+    }
+    return this.myAudioBuffer.getChannelData(channel).slice(0, this.getLength());
   }
 
+  /**
+   * Get the internal index of the ring buffer.
+   * @param {number} index - The external index to convert.
+   * @returns {number} The internal index within the ring buffer.
+   * @throws Will throw an error if the index is invalid.
+   */
   getIndex(index) {
     let internalIndex;
     if (this.isFull) {
-      //if it's full, length is fixed
+      // If the buffer is full, the length is fixed
       let hpi = this.head + index;
       if (hpi < this.length) {
         internalIndex = hpi;
       } else {
-        // modulo operation takes sometimes too much ressources, never found out why but flame graph says that this function takes a significant time
-        //internalIndex = hpi % this.length;
-        // just taking the difference is working in this case since index should be smaller than length
+        // Modulo operation takes sometimes too many resources, never found out why but flame graph says that this function takes a significant time
+        // internalIndex = hpi % this.length;
+        // Just taking the difference is working in this case since index should be smaller than length
         internalIndex = hpi - this.length;
       }
     } else {
@@ -108,6 +121,18 @@ class CircularAudioBuffer {
     }
 
     return internalIndex;
+  }
+
+  /**
+   * Reset the buffer to its initial state.
+   * (never used in the current implementation, but could be useful in the future)
+   */
+  reset() {
+    this.head = 0;
+    this.isFull = false;
+    for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
+      this.myAudioBuffer.getChannelData(chIdx).fill(0);
+    }
   }
 }
 

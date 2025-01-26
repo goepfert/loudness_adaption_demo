@@ -105,8 +105,8 @@ class LoudnessSample {
       this.copybuffer.length = 0;
       this.copybuffer = undefined;
 
-      for (let idx = 0; idx > this.PreStageFilter.length; idx++) {
-        this.PreStageFilter.resetMemories();
+      for (let idx = 0; idx < this.PreStageFilter.length; idx++) {
+        this.PreStageFilter[idx].resetMemories();
       }
     }
   }
@@ -127,9 +127,7 @@ class LoudnessSample {
         this.PreStageFilter[chIdx].process(inputData, outputData);
       } else {
         // or just copy
-        for (let sample = 0; sample < inputBuffer.length; sample++) {
-          outputData[sample] = inputData[sample];
-        }
+        outputData.set(inputData);
       }
     } // next channel
 
