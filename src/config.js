@@ -32,6 +32,16 @@ const Config = {
    * @type {number}
    */
   audioMeter_cliLag: 250,
+
+  shelving: {
+    feedforward: [1.53512485958697, -2.69169618940638, 1.19839281085285],
+    feedback: [1.0, -1.69065929318241, 0.73248077421585],
+  },
+
+  highpass: {
+    feedforward: [1.0, -2.0, 1.0],
+    feedback: [1.0, -1.99004745483398, 0.99007225036621],
+  },
 };
 
 // Freeze the configuration object to make it immutable

@@ -155,6 +155,8 @@ const MainApp = (() => {
       });
     };
     reader.readAsArrayBuffer(file);
+
+    loadProcessors();
   }
 
   /**
@@ -178,32 +180,38 @@ const MainApp = (() => {
     if (canvasContext != undefined) {
       canvasContext.clearRect(0, 0, WIDTH, HEIGHT);
       const meter = audioCtxCtrl.getMeter();
+
       if (meter != undefined) {
+        meter.port.postMessage('getClipping');
+        meter.port.postMessage('getVolume');
+
         // check if we're currently clipping
-        if (meter.checkClipping()) {
+        if (meter.clipping != undefined && meter.clipping) {
           canvasContext.fillStyle = 'red';
         } else {
           canvasContext.fillStyle = 'green';
         }
         // draw a bar based on the current volume
-        const nChannels = meter.volume.length;
-        for (let chIdx = 0; chIdx < nChannels; chIdx++) {
-          canvasContext.fillRect(
-            (WIDTH / nChannels) * chIdx,
-            HEIGHT,
-            WIDTH / nChannels,
-            -2 * HEIGHT * meter.volume[chIdx]
-          );
+        if (meter.volume != undefined) {
+          let volume = meter.volume;
+          const nChannels = volume.length;
+          for (let chIdx = 0; chIdx < nChannels; chIdx++) {
+            canvasContext.fillRect((WIDTH / nChannels) * chIdx, HEIGHT, WIDTH / nChannels, -2 * HEIGHT * volume[chIdx]);
+          }
         }
       }
     }
 
-    // if playing update graph and call recurslively
+    // if playing update graph and call recursively
     // remember to update again when resume playing
     if (audioCtxCtrl.getPlaying()) {
       GraphCtrl.updateGraph();
       window.requestAnimationFrame(updateAnimationFrame);
     }
+  }
+
+  async function loadProcessors() {
+    await audioContext.audioWorklet.addModule('./src/audioMeter-processor.js');
   }
 
   // Public methods

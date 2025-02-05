@@ -8,7 +8,7 @@ import GraphCtrl from './graphController.js';
 import ParaCtrl from './parameterController.js';
 import UICtrl from './userInterfaceController.js';
 import LoudnessSample from './loudness.js';
-import { createAudioMeter } from './audioMeter.js';
+// import { createAudioMeter } from './audioMeter.js';
 import { Config } from './config.js';
 
 ('use strict');
@@ -37,6 +37,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
   let isPlaying = false;
 
   let meter = undefined;
+  let audioMeter = undefined;
 
   let loudnessSample = undefined;
   let loudnessSample_control = undefined;
@@ -73,7 +74,29 @@ function createAudioCtxCtrl(audioContext, buffer) {
     }
   }
 
-  function play() {
+  function createAudioMeterProcessor() {
+    audioMeter = new AudioWorkletNode(audioContext, 'audioMeter-processor');
+    audioMeter.volume = [];
+    audioMeter.clipping = 0;
+
+    audioMeter.port.onmessage = (e) => {
+      switch (e.data.name) {
+        case 'volume':
+          // console.log('volume:', e.data.value);
+          audioMeter.volume = e.data.value;
+          break;
+        case 'clipping':
+          // console.log('clipping:', e.data.value);
+          audioMeter.clipping = e.data.value;
+        default:
+          break;
+      }
+    };
+
+    return audioMeter;
+  }
+
+  async function play() {
     console.log('- PLAY --------------------------------');
 
     UICtrl.disableLoudnessControl();
@@ -93,30 +116,60 @@ function createAudioCtxCtrl(audioContext, buffer) {
         2
       );
     }
+    if (audioMeter == undefined) {
+      audioMeter = createAudioMeterProcessor();
+    }
+
     source = audioContext.createBufferSource();
     source.buffer = buffer;
-    sp_loudness = audioContext.createScriptProcessor(bufferSize, buffer.numberOfChannels, buffer.numberOfChannels);
-    sp_loudness.onaudioprocess = loudnessSample.onProcess;
-    source.connect(sp_loudness);
 
-    // output unfiltered data
+    // frequency response tested with https://developer.mozilla.org/de/docs/Web/API/Web_Audio_API/Using_IIR_filters
+    const feedForward_shelving = Config.shelving.feedforward;
+    const feedBack_shelving = Config.shelving.feedback;
+    const iirfilter_shelving = audioContext.createIIRFilter(feedForward_shelving, feedBack_shelving);
+
+    const feedForward_highpass = Config.highpass.feedforward;
+    const feedBack_highpass = Config.highpass.feedback;
+    const iirfilter_highpass = audioContext.createIIRFilter(feedForward_highpass, feedBack_highpass);
+
+    source.connect(iirfilter_shelving).connect(iirfilter_highpass);
+
+    // audioMeter =
+    // await createAudioMeterProcessor();
+    console.log('🚀 ~ play ~ audioMeter:', audioMeter);
+
     gain = audioContext.createGain();
+
+    iirfilter_highpass.connect(gain);
+
+    gain.connect(audioMeter).connect(audioContext.destination);
+
     gain.gain.setValueAtTime(targetGain, audioContext.currentTime); //?
 
-    // measure again after gain control
-    sp_loudness_control = audioContext.createScriptProcessor(
-      bufferSize,
-      buffer.numberOfChannels,
-      buffer.numberOfChannels
-    );
-    sp_loudness_control.onaudioprocess = loudnessSample_control.onProcess;
+    // source.connect(audioContext.destination);
 
-    source.connect(gain);
-    gain.connect(sp_loudness_control);
-    gain.connect(audioContext.destination);
+    // sp_loudness = audioContext.createScriptProcessor(bufferSize, buffer.numberOfChannels, buffer.numberOfChannels);
+    // sp_loudness.onaudioprocess = loudnessSample.onProcess;
+    // source.connect(sp_loudness);
 
-    meter = createAudioMeter(audioContext, buffer.numberOfChannels, 0.98, 0.95, Config.audioMeter_cliLag);
-    gain.connect(meter);
+    // // output unfiltered data
+    // gain = audioContext.createGain();
+    // gain.gain.setValueAtTime(targetGain, audioContext.currentTime); //?
+
+    // // measure again after gain control
+    // sp_loudness_control = audioContext.createScriptProcessor(
+    //   bufferSize,
+    //   buffer.numberOfChannels,
+    //   buffer.numberOfChannels
+    // );
+    // sp_loudness_control.onaudioprocess = loudnessSample_control.onProcess;
+
+    // source.connect(gain);
+    // gain.connect(sp_loudness_control);
+    // gain.connect(audioContext.destination);
+
+    // meter = createAudioMeter(audioContext, buffer.numberOfChannels, 0.98, 0.95, Config.audioMeter_cliLag);
+    // gain.connect(meter);
 
     source.start(0, pausedAt);
     source.loop = ParaCtrl.getLoop();
@@ -237,7 +290,9 @@ function createAudioCtxCtrl(audioContext, buffer) {
   }
 
   function getMeter() {
-    return meter;
+    // return meter;
+    // console.log('ameter:', audioMeter);
+    return audioMeter;
   }
 
   // Public methods
