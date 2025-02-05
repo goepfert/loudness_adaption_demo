@@ -7,7 +7,7 @@
 import GraphCtrl from './graphController.js';
 import ParaCtrl from './parameterController.js';
 import UICtrl from './userInterfaceController.js';
-import LoudnessSample from './loudness.js';
+import LoudnessSample from './backup/loudness.js';
 // import { createAudioMeter } from './audioMeter.js';
 import { Config } from './config.js';
 

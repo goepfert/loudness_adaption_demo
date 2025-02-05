@@ -7,7 +7,6 @@
  * author: Thomas Goepfert
  */
 
-import BiquadFilter_DF2 from './backup/biquadfilter_df2.js';
 import CircularAudioBuffer from './circularAudioBuffer.js';
 
 ('use strict');
@@ -16,11 +15,11 @@ import CircularAudioBuffer from './circularAudioBuffer.js';
  * buffer: the AudioBuffer, only needed for getting samplerate and number of channels, may also be obtained elsewhere
  * callback: callback function called after processing a chunk of the audiobuffer
  */
-class LoudnessSample {
-  constructor(context, buffer, callback, props, id) {
-    this.context = context;
+class LoudnessProcessor extends AudioWorkletProcessor {
+  constructor(audioContext, props, id = -1) {
+    this.audioContext = audioContext;
 
-    this.id = id || -1; // debugging purpose
+    this.id = id; // debugging purpose
     this.blocked = false; // can I reset the buffers?
 
     this.loudnessprops = Object.assign({}, props); // not sure if I really need a 'deep' copy
@@ -29,33 +28,19 @@ class LoudnessSample {
     this.copybuffer = undefined; // 'history' circular audiobuffer
     this.once = true; // some logging
 
-    this.nChannels = buffer.numberOfChannels;
-    this.sampleRate = buffer.sampleRate;
+    // this.nChannels = buffer.numberOfChannels;
+    // this.sampleRate = buffer.sampleRate;
+
     this.nSamplesPerInterval = 0;
     this.nStepsize = 0;
 
-    this.PreStageFilter = []; // array of filters (one for each channel) applied before loundness calculation
     this.channelWeight = []; // Gi
-    this.bypass = false; // bypass PrestageFilters, testing purpose
-
-    // Pre Stage Filter Coefficient for Direct2 Norm
-    // parameters given in ITU-R BS.1770
-    // gain, high shelving, high-pass
-    let coef = [
-      1.0, 1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, 0.73248077421585, 1.0, -2.0, 1.0,
-      -1.99004745483398, 0.99007225036621,
-    ];
 
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-      this.PreStageFilter.push(new BiquadFilter_DF2(coef));
-      this.PreStageFilter.push(new BiquadFilter_DF2(coef));
       // channel weight (no surround!)
       // TODO: Is there a way to determine which channel is surround? Defaults to 1.0 for the time being
       this.channelWeight.push(1.0);
     }
-
-    this.onProcess = this.onProcess.bind(this);
-    this.callback = callback;
 
     this.initLoudnessProps();
     console.log('🚀 ~ LoudnessSample ~ constructor ~ buffer:', buffer);
@@ -64,39 +49,38 @@ class LoudnessSample {
   initLoudnessProps() {
     this.nSamplesPerInterval = this.loudnessprops.interval * this.sampleRate;
     this.nStepsize = (1.0 - this.loudnessprops.overlap) * this.nSamplesPerInterval;
-    this.printSomeInfo();
+    // this.printSomeInfo(); // don't think I can do this
   }
 
-  getLoudnessProps() {
-    return this.loudnessprops;
-  }
+  // nope
+  // getLoudnessProps() {
+  //   return this.loudnessprops;
+  // }
 
-  setLoudnessProps(props) {
-    this.loudnessprops = Object.assign({}, props);
-    this.initLoudnessProps();
-  }
+  // nope, I think never used (only set in contructor)
+  // setLoudnessProps(props) {
+  //   this.loudnessprops = Object.assign({}, props);
+  //   this.initLoudnessProps();
+  // }
 
-  printSomeInfo() {
-    console.log(
-      'Interval [s]:',
-      this.loudnessprops.interval,
-      '\nsamples / intervall',
-      this.nSamplesPerInterval,
-      '\noverlap [fraction]:',
-      this.loudnessprops.overlap,
-      '\nStepSize:',
-      this.nStepsize,
-      '\nmaxT [s]:',
-      this.loudnessprops.maxT
-    ); //, '\nmaxSamples:', this.maxSamples);
-  }
-
-  resetMemory() {
-    this.resetBuffer();
-  }
+  // nope
+  // printSomeInfo() {
+  //   console.log(
+  //     'Interval [s]:',
+  //     this.loudnessprops.interval,
+  //     '\nsamples / intervall',
+  //     this.nSamplesPerInterval,
+  //     '\noverlap [fraction]:',
+  //     this.loudnessprops.overlap,
+  //     '\nStepSize:',
+  //     this.nStepsize,
+  //     '\nmaxT [s]:',
+  //     this.loudnessprops.maxT
+  //   ); //, '\nmaxSamples:', this.maxSamples);
+  // }
 
   /**
-   * clear copybuffer and memory of the prestage filters
+   * clear copybuffer
    * can be used to mimic a fresh start of the loudness calculation (e.g. a track change)
    */
   resetBuffer() {
@@ -104,11 +88,29 @@ class LoudnessSample {
     if (this.copybuffer != undefined) {
       this.copybuffer.length = 0;
       this.copybuffer = undefined;
-
-      for (let idx = 0; idx < this.PreStageFilter.length; idx++) {
-        this.PreStageFilter[idx].resetMemories();
-      }
     }
+  }
+
+  process(inputList, outputList, parameters) {
+    const sourceLimit = Math.min(inputList.length, outputList.length);
+
+    for (let inputNum = 0; inputNum < sourceLimit; inputNum++) {
+      let input = inputList[inputNum];
+      let output = outputList[inputNum];
+      let channelCount = Math.min(input.length, output.length);
+
+      for (let chIdx = 0; chIdx < channelCount; chIdx++) {
+        let bufferLength = input[chIdx].length;
+        for (let sampleIdx = 0; sampleIdx < bufferLength; sampleIdx++) {
+          let sample = input[chIdx][sampleIdx];
+
+          // simple 1:1 copy
+          output[chIdx][sampleIdx] = sample;
+        } // end loop samples
+      } // end loop input channels
+    } // end loop input sources
+
+    return true;
   }
 
   /**
@@ -127,7 +129,9 @@ class LoudnessSample {
         this.PreStageFilter[chIdx].process(inputData, outputData);
       } else {
         // or just copy
-        outputData.set(inputData);
+        for (let sample = 0; sample < inputBuffer.length; sample++) {
+          outputData[sample] = inputData[sample];
+        }
       }
     } // next channel
 

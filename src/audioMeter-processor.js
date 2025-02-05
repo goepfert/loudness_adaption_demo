@@ -39,6 +39,11 @@ class AudioMeter extends AudioWorkletProcessor {
     };
   }
 
+  /**
+   * Check if a specific channel is clipping.
+   * @param {number} channel - The channel index.
+   * @returns {boolean} - True if the channel is clipping, false otherwise.
+   */
   checkClippingChannel(channel) {
     if (!this.clipping[channel]) {
       return false;
@@ -49,6 +54,10 @@ class AudioMeter extends AudioWorkletProcessor {
     return this.clipping[channel];
   }
 
+  /**
+   * Check if any channel is clipping.
+   * @returns {boolean} - True if any channel is clipping, false otherwise.
+   */
   checkClipping() {
     for (let chIdx = 0; chIdx < this.clipping.length; chIdx++) {
       if (this.checkClippingChannel(chIdx)) {
@@ -58,6 +67,13 @@ class AudioMeter extends AudioWorkletProcessor {
     return false;
   }
 
+  /**
+   * Process audio input and output.
+   * @param {Float32Array[][]} inputList - The input audio buffers.
+   * @param {Float32Array[][]} outputList - The output audio buffers.
+   * @param {object} parameters - The audio parameters.
+   * @returns {boolean} - True to keep the processor alive, false otherwise.
+   */
   process(inputList, outputList, parameters) {
     const sourceLimit = Math.min(inputList.length, outputList.length);
 
