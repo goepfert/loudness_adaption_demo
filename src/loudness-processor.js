@@ -7,77 +7,64 @@
  * author: Thomas Goepfert
  */
 
-import CircularAudioBuffer from './circularAudioBuffer.js';
+// import CircularBuffer from './circularBuffer.js';
+import Utils from './utils.js';
 
 ('use strict');
 
 /**
- * buffer: the AudioBuffer, only needed for getting samplerate and number of channels, may also be obtained elsewhere
- * callback: callback function called after processing a chunk of the audiobuffer
+ *
  */
 class LoudnessProcessor extends AudioWorkletProcessor {
-  constructor(audioContext, props, id = -1) {
-    this.audioContext = audioContext;
+  constructor(options) {
+    super();
 
-    this.id = id; // debugging purpose
     this.blocked = false; // can I reset the buffers?
-
-    this.loudnessprops = Object.assign({}, props); // not sure if I really need a 'deep' copy
-
+    this.loudnessprops = Object.assign({}, options.processorOptions.loudnessprops); // not sure if I really need a 'deep' copy
     this.gamma_a = -70; // LKFS
-    this.copybuffer = undefined; // 'history' circular audiobuffer
+    this.copybuffer = undefined; // 'history' circular buffer
     this.once = true; // some logging
-
-    // this.nChannels = buffer.numberOfChannels;
-    // this.sampleRate = buffer.sampleRate;
-
+    this.sampleRate = 48000; // can we obtain it somwhere else?
     this.nSamplesPerInterval = 0;
     this.nStepsize = 0;
-
     this.channelWeight = []; // Gi
+    this.firstCall = true;
 
-    for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-      // channel weight (no surround!)
-      // TODO: Is there a way to determine which channel is surround? Defaults to 1.0 for the time being
-      this.channelWeight.push(1.0);
-    }
+    this.once = true;
 
     this.initLoudnessProps();
-    console.log('🚀 ~ LoudnessSample ~ constructor ~ buffer:', buffer);
+
+    this.gatedLoudness = NaN;
+
+    this.port.onmessage = (e) => {
+      switch (e.data) {
+        case 'resetBuffer':
+          console.log('resetting loudness buffer');
+          this.resetBuffer();
+          break;
+        case 'getLoudness':
+          console.log('getLoudness', this.gatedLoudness);
+          this.port.postMessage({ name: 'loudness', value: this.gatedLoudness });
+          break;
+        default:
+          console.log('hä?');
+          break;
+      }
+    };
   }
 
   initLoudnessProps() {
     this.nSamplesPerInterval = this.loudnessprops.interval * this.sampleRate;
     this.nStepsize = (1.0 - this.loudnessprops.overlap) * this.nSamplesPerInterval;
-    // this.printSomeInfo(); // don't think I can do this
   }
 
-  // nope
-  // getLoudnessProps() {
-  //   return this.loudnessprops;
-  // }
-
-  // nope, I think never used (only set in contructor)
-  // setLoudnessProps(props) {
-  //   this.loudnessprops = Object.assign({}, props);
-  //   this.initLoudnessProps();
-  // }
-
-  // nope
-  // printSomeInfo() {
-  //   console.log(
-  //     'Interval [s]:',
-  //     this.loudnessprops.interval,
-  //     '\nsamples / intervall',
-  //     this.nSamplesPerInterval,
-  //     '\noverlap [fraction]:',
-  //     this.loudnessprops.overlap,
-  //     '\nStepSize:',
-  //     this.nStepsize,
-  //     '\nmaxT [s]:',
-  //     this.loudnessprops.maxT
-  //   ); //, '\nmaxSamples:', this.maxSamples);
-  // }
+  initWeights(nChannels) {
+    for (let chIdx = 0; chIdx < nChannels; chIdx++) {
+      // channel weight (no surround!)
+      // TODO: Is there a way to determine which channel is surround? Defaults to 1.0 for the time being
+      this.channelWeight.push(1.0);
+    }
+  }
 
   /**
    * clear copybuffer
@@ -91,13 +78,28 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     }
   }
 
-  process(inputList, outputList, parameters) {
+  process(inputList, outputList) {
+    this.blocked = true;
     const sourceLimit = Math.min(inputList.length, outputList.length);
+    Utils.assert(sourceLimit == 1, 'No input sources or more than one input source is not supported');
 
     for (let inputNum = 0; inputNum < sourceLimit; inputNum++) {
       let input = inputList[inputNum];
       let output = outputList[inputNum];
       let channelCount = Math.min(input.length, output.length);
+
+      if (this.firstCall == true) {
+        this.firstCall = false;
+        this.initWeights(channelCount);
+      }
+
+      if (this.once == true) {
+        this.once = false;
+        console.log('input', input);
+        console.log('length', input.length);
+        console.log('🚀 ~ LoudnessProcessor ~ process ~ channelCount:', channelCount);
+      }
+      // this.gatedLoudness = this.calculateLoudness(input);
 
       for (let chIdx = 0; chIdx < channelCount; chIdx++) {
         let bufferLength = input[chIdx].length;
@@ -110,34 +112,8 @@ class LoudnessProcessor extends AudioWorkletProcessor {
       } // end loop input channels
     } // end loop input sources
 
-    return true;
-  }
-
-  /**
-   * Called by the ScriptProcessor Node with chunks of the AudioBuffer
-   */
-  onProcess(audioProcessingEvent) {
-    this.blocked = true;
-    let inputBuffer = audioProcessingEvent.inputBuffer;
-    let outputBuffer = audioProcessingEvent.outputBuffer;
-
-    for (let chIdx = 0; chIdx < outputBuffer.numberOfChannels; chIdx++) {
-      let inputData = inputBuffer.getChannelData(chIdx);
-      let outputData = outputBuffer.getChannelData(chIdx);
-
-      if (!this.bypass) {
-        this.PreStageFilter[chIdx].process(inputData, outputData);
-      } else {
-        // or just copy
-        for (let sample = 0; sample < inputBuffer.length; sample++) {
-          outputData[sample] = inputData[sample];
-        }
-      }
-    } // next channel
-
-    const gatedLoudness = this.calculateLoudness(outputBuffer);
-    this.callback(gatedLoudness);
     this.blocked = false;
+    return true;
   }
 
   /**
@@ -149,7 +125,8 @@ class LoudnessProcessor extends AudioWorkletProcessor {
       // how long should the copybuffer be at least?
       // --> at least maxT should fit in and length shall be an integer fraction of buffer length
       const length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer.length + 1) * buffer.length;
-      this.copybuffer = new CircularAudioBuffer(this.context, this.nChannels, length, this.sampleRate);
+      nChannels = buffer.length;
+      this.copybuffer = new CircularBuffer(nChannels, length);
     }
 
     // accumulate buffer to previous calls
@@ -256,4 +233,4 @@ class LoudnessProcessor extends AudioWorkletProcessor {
   }
 }
 
-export default LoudnessSample;
+registerProcessor('loudness-processor', LoudnessProcessor);

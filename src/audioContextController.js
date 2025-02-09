@@ -7,8 +7,7 @@
 import GraphCtrl from './graphController.js';
 import ParaCtrl from './parameterController.js';
 import UICtrl from './userInterfaceController.js';
-import LoudnessSample from './backup/loudness.js';
-// import { createAudioMeter } from './audioMeter.js';
+import Utils from './utils.js';
 import { Config } from './config.js';
 
 ('use strict');
@@ -36,11 +35,9 @@ function createAudioCtxCtrl(audioContext, buffer) {
   let pausedAt = 0;
   let isPlaying = false;
 
-  let meter = undefined;
   let audioMeter = undefined;
-
-  let loudnessSample = undefined;
-  let loudnessSample_control = undefined;
+  let loudnessProcessor = undefined;
+  // let loudnessSample_control = undefined;
 
   // Callback called at the end of onProcess
   function callback_loudness(gatedLoudness) {
@@ -96,32 +93,58 @@ function createAudioCtxCtrl(audioContext, buffer) {
     return audioMeter;
   }
 
+  function createLoudnessProcessor() {
+    loudnessProcessor = new AudioWorkletNode(audioContext, 'loudness-processor', {
+      processorOptions: { loudnessprops: ParaCtrl.getLoudnessProperties() },
+    });
+
+    loudnessProcessor.port.onmessage = (e) => {
+      switch (e.data.name) {
+        case 'loudness':
+          // console.log('loudness:', e.data.value);
+          loudnessProcessor.gatedLoudness = e.data.value;
+          break;
+        default:
+          break;
+      }
+    };
+    return loudnessProcessor;
+  }
+
   async function play() {
     console.log('- PLAY --------------------------------');
 
     UICtrl.disableLoudnessControl();
-    if (loudnessSample == undefined) {
-      loudnessSample = new LoudnessSample(audioContext, buffer, callback_loudness, ParaCtrl.getLoudnessProperties(), 1);
-    }
-    if (loudnessSample_control == undefined) {
-      loudnessSample_control = new LoudnessSample(
-        audioContext,
-        buffer,
-        callback_loudness_control,
-        {
-          interval: 0.4,
-          overlap: 0.75,
-          maxT: Config.maxT_recalc_loudness,
-        },
-        2
-      );
-    }
+    // if (loudnessSample == undefined) {
+    //   loudnessSample = new LoudnessSample(audioContext, buffer, callback_loudness, ParaCtrl.getLoudnessProperties(), 1);
+    // }
+    // if (loudnessSample_control == undefined) {
+    //   loudnessSample_control = new LoudnessSample(
+    //     audioContext,
+    //     buffer,
+    //     callback_loudness_control,
+    //     {
+    //       interval: 0.4,
+    //       overlap: 0.75,
+    //       maxT: Config.maxT_recalc_loudness,
+    //     },
+    //     2
+    //   );
+    // }
     if (audioMeter == undefined) {
       audioMeter = createAudioMeterProcessor();
     }
+    if (loudnessProcessor == undefined) {
+      loudnessProcessor = createLoudnessProcessor();
+    }
+
+    loudnessProcessor.port.postMessage('resetBuffer');
+    loudnessProcessor.port.postMessage('getLoudness');
 
     source = audioContext.createBufferSource();
     source.buffer = buffer;
+
+    source.connect(audioMeter);
 
     // frequency response tested with https://developer.mozilla.org/de/docs/Web/API/Web_Audio_API/Using_IIR_filters
     const feedForward_shelving = Config.shelving.feedforward;
@@ -134,17 +157,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
 
     source.connect(iirfilter_shelving).connect(iirfilter_highpass);
 
-    // audioMeter =
-    // await createAudioMeterProcessor();
-    console.log('🚀 ~ play ~ audioMeter:', audioMeter);
-
-    gain = audioContext.createGain();
-
-    iirfilter_highpass.connect(gain);
-
-    gain.connect(audioMeter).connect(audioContext.destination);
-
-    gain.gain.setValueAtTime(targetGain, audioContext.currentTime); //?
+    iirfilter_highpass.connect(loudnessProcessor).connect(audioContext.destination);
 
     // source.connect(audioContext.destination);
 
@@ -203,7 +216,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
       source.disconnect();
       sp_loudness.onaudioprocess = null;
       sp_loudness_control.onaudioprocess = null;
-      meter.shutdown();
+      // meter.shutdown();
       source.stop(0);
       source = undefined;
     }

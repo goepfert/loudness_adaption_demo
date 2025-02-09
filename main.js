@@ -212,6 +212,7 @@ const MainApp = (() => {
 
   async function loadProcessors() {
     await audioContext.audioWorklet.addModule('./src/audioMeter-processor.js');
+    await audioContext.audioWorklet.addModule('./src/loudness-processor.js');
   }
 
   // Public methods
