@@ -73,17 +73,16 @@ function createAudioCtxCtrl(audioContext, buffer) {
 
   function createAudioMeterProcessor() {
     audioMeter = new AudioWorkletNode(audioContext, 'audioMeter-processor');
+    // attach to object
     audioMeter.volume = [];
     audioMeter.clipping = 0;
 
     audioMeter.port.onmessage = (e) => {
       switch (e.data.name) {
         case 'volume':
-          // console.log('volume:', e.data.value);
           audioMeter.volume = e.data.value;
           break;
         case 'clipping':
-          // console.log('clipping:', e.data.value);
           audioMeter.clipping = e.data.value;
         default:
           break;
@@ -97,11 +96,12 @@ function createAudioCtxCtrl(audioContext, buffer) {
     loudnessProcessor = new AudioWorkletNode(audioContext, 'loudness-processor', {
       processorOptions: { loudnessprops: ParaCtrl.getLoudnessProperties() },
     });
+    // attach to object
+    loudnessProcessor.gatedLoudness = NaN;
 
     loudnessProcessor.port.onmessage = (e) => {
       switch (e.data.name) {
         case 'loudness':
-          // console.log('loudness:', e.data.value);
           loudnessProcessor.gatedLoudness = e.data.value;
           break;
         default:
@@ -138,7 +138,6 @@ function createAudioCtxCtrl(audioContext, buffer) {
       loudnessProcessor = createLoudnessProcessor();
     }
 
-    loudnessProcessor.port.postMessage('resetBuffer');
     loudnessProcessor.port.postMessage('getLoudness');
 
     source = audioContext.createBufferSource();
@@ -205,8 +204,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
 
     commonStop();
     // saw sometimes inconsistent data when not rebuilding loudness ... never found out why :(
-    loudnessSample = undefined;
-    loudnessSample_control = undefined;
+    loudnessProcessor = undefined;
     targetGain = startGain;
     UICtrl.enableLoudnessControl();
   }
@@ -214,9 +212,6 @@ function createAudioCtxCtrl(audioContext, buffer) {
   function commonStop() {
     if (source != undefined) {
       source.disconnect();
-      sp_loudness.onaudioprocess = null;
-      sp_loudness_control.onaudioprocess = null;
-      // meter.shutdown();
       source.stop(0);
       source = undefined;
     }
@@ -308,6 +303,10 @@ function createAudioCtxCtrl(audioContext, buffer) {
     return audioMeter;
   }
 
+  function getLoudnessProcessor() {
+    return loudnessProcessor;
+  }
+
   // Public methods
   return {
     getCurrentPlayTime,
@@ -320,6 +319,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
     reset,
     setLoop,
     getMeter,
+    getLoudnessProcessor,
   };
 }
 

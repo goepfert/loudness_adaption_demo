@@ -8,7 +8,7 @@
  */
 
 import BiquadFilter_DF2 from './biquadfilter_df2.js';
-import CircularAudioBuffer from '../circularAudioBuffer.js';
+import CircularAudioBuffer from './circularAudioBuffer.js';
 
 ('use strict');
 

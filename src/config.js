@@ -42,6 +42,8 @@ const Config = {
     feedforward: [1.0, -2.0, 1.0],
     feedback: [1.0, -1.99004745483398, 0.99007225036621],
   },
+
+  timeIntervalForLoundessCalculation: 0.4,
 };
 
 // Freeze the configuration object to make it immutable

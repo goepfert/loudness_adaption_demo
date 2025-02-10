@@ -1,5 +1,5 @@
 /**
- * Circular Ringbuffer for AudioArrays
+ * Circular Ringbuffer for nD-Arrays
  *
  * Custom made, not a general purpose ringbuffer
  * Construct with given length, concat buffer with a length that is an integer fraction of that length
@@ -9,11 +9,11 @@
  * author: Thomas Goepfert
  */
 
-class CircularBuffer {
+class CircularBuffer_nD {
   constructor(nChannels, length) {
-    this.myAudioBuffer = [];
-    for (chIdx = 0; chIdx < nChannels; chIdx++) {
-      this.myAudioBuffer.push(new Float32Array(length));
+    this.myBuffer = [];
+    for (let chIdx = 0; chIdx < nChannels; chIdx++) {
+      this.myBuffer.push(new Float32Array(length));
     }
 
     this.nChannels = nChannels;
@@ -22,7 +22,6 @@ class CircularBuffer {
     this.isFull = false;
   }
 
-  // TODO: make it 2D?!
   validate(buffer) {
     if (!this.isBuffer(buffer)) {
       console.log(buffer);
@@ -44,19 +43,22 @@ class CircularBuffer {
   }
 
   /**
-   * Copy data from fromBuffer to myAudioBuffer at head position.
+   * Copy data from fromBuffer to myBuffer at head position.
    */
   concat(fromBuffer) {
-    // de-activated for now to save some ressources
-    // this.validate(fromBuffer);
-
-    // Copy data from fromBuffer at head position in myAudioBuffer
+    // maybe skipped for performance reasons
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-      let channelData = fromBuffer.getChannelData(chIdx).map((value) => Math.pow(value, 2));
-      this.myAudioBuffer.copyToChannel(channelData, chIdx, this.head);
+      this.validate(fromBuffer[chIdx]);
     }
 
-    this.head += fromBuffer.length;
+    //copy data² from fromBuffer at head Position in myBuffer
+    let headpos = this.head;
+    for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
+      for (let idx = 0; idx < fromBuffer[chIdx].length; idx++) {
+        this.myBuffer[chIdx][headpos + idx] = fromBuffer[chIdx][idx] * fromBuffer[chIdx][idx]; // save the squares!
+      }
+    }
+    this.head += fromBuffer[0].length;
     if (this.head >= this.length) {
       this.head = 0;
       this.isFull = true;
@@ -71,6 +73,10 @@ class CircularBuffer {
     return this.isFull ? this.length : this.head;
   }
 
+  getnChannels() {
+    return this.nChannels;
+  }
+
   /**
    * Get the channel data of the buffer.
    * @param {number} channel - The channel index.
@@ -80,7 +86,7 @@ class CircularBuffer {
     if (channel < 0 || channel >= this.nChannels) {
       throw new Error('Invalid channel index');
     }
-    return this.myAudioBuffer.getChannelData(channel).slice(0, this.getLength());
+    return this.myBuffer[channel].slice(0, this.getLength());
   }
 
   /**
@@ -117,9 +123,9 @@ class CircularBuffer {
     this.head = 0;
     this.isFull = false;
     for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
-      this.myAudioBuffer.getChannelData(chIdx).fill(0);
+      this.myAudioBuffer[chIdx].fill(0);
     }
   }
 }
 
-export default CircularAudioBuffer;
+export default CircularBuffer_nD;

@@ -7,7 +7,8 @@
  * author: Thomas Goepfert
  */
 
-// import CircularBuffer from './circularBuffer.js';
+import CircularBuffer_nD from './circularBuffer_nD.js';
+import { Config } from './config.js';
 import Utils from './utils.js';
 
 ('use strict');
@@ -27,13 +28,14 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     this.sampleRate = 48000; // can we obtain it somwhere else?
     this.nSamplesPerInterval = 0;
     this.nStepsize = 0;
+    this.nChannels = 0;
     this.channelWeight = []; // Gi
     this.firstCall = true;
 
-    this.once = true;
-
     this.initLoudnessProps();
 
+    this.timeAccumulated = 0;
+    this.timeIntervallForLoundess = 0.5;
     this.gatedLoudness = NaN;
 
     this.port.onmessage = (e) => {
@@ -43,7 +45,7 @@ class LoudnessProcessor extends AudioWorkletProcessor {
           this.resetBuffer();
           break;
         case 'getLoudness':
-          console.log('getLoudness', this.gatedLoudness);
+          // console.log('getLoudness', this.gatedLoudness);
           this.port.postMessage({ name: 'loudness', value: this.gatedLoudness });
           break;
         default:
@@ -86,22 +88,24 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     for (let inputNum = 0; inputNum < sourceLimit; inputNum++) {
       let input = inputList[inputNum];
       let output = outputList[inputNum];
-      let channelCount = Math.min(input.length, output.length);
+      // let channelCount = Math.min(input.length, output.length);
+      this.nChannels = input.length;
+      Utils.assert(this.nChannels == output.length, 'Number of input and output channels must match');
 
       if (this.firstCall == true) {
         this.firstCall = false;
-        this.initWeights(channelCount);
+        this.initWeights(this.nChannels);
       }
 
-      if (this.once == true) {
-        this.once = false;
-        console.log('input', input);
-        console.log('length', input.length);
-        console.log('🚀 ~ LoudnessProcessor ~ process ~ channelCount:', channelCount);
-      }
-      // this.gatedLoudness = this.calculateLoudness(input);
+      this.concat(input);
 
-      for (let chIdx = 0; chIdx < channelCount; chIdx++) {
+      this.timeAccumulated += input[0].length / this.sampleRate;
+      if (this.timeAccumulated >= Config.timeIntervalForLoundessCalculation) {
+        this.gatedLoudness = this.calculateLoudness();
+        this.timeAccumulated = 0;
+      }
+
+      for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
         let bufferLength = input[chIdx].length;
         for (let sampleIdx = 0; sampleIdx < bufferLength; sampleIdx++) {
           let sample = input[chIdx][sampleIdx];
@@ -119,23 +123,24 @@ class LoudnessProcessor extends AudioWorkletProcessor {
   /**
    * calculates gated loudness of the accumulated Audiobuffers since time T
    */
-  calculateLoudness(buffer) {
+  concat(buffer) {
     // first call or after resetMemory
     if (this.copybuffer == undefined) {
       // how long should the copybuffer be at least?
       // --> at least maxT should fit in and length shall be an integer fraction of buffer length
-      const length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer.length + 1) * buffer.length;
-      nChannels = buffer.length;
-      this.copybuffer = new CircularBuffer(nChannels, length);
+      const length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer[0].length + 1) * buffer[0].length;
+      this.copybuffer = new CircularBuffer_nD(this.nChannels, length);
     }
 
     // accumulate buffer to previous calls
     this.copybuffer.concat(buffer);
+  }
 
+  calculateLoudness() {
     // must be gt nSamplesPerInterval
     // or: wait at least one interval time T to be able to calculate loudness
     if (this.copybuffer.getLength() < this.nSamplesPerInterval) {
-      console.log('buffer too small ... have to eat more data');
+      console.log('buffer too small ... have to eat more data for at least one interval');
       return NaN;
     }
 
@@ -181,7 +186,7 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     let meanSquares = {};
     const length = buffer.getLength();
 
-    for (let chIdx = 0; chIdx < this.nChannels; chIdx++) {
+    for (let chIdx = 0; chIdx < buffer.getnChannels(); chIdx++) {
       const arraybuffer = buffer.getMyChannelData(chIdx);
       let idx1 = 0;
       let idx2 = nSamplesPerInterval;
@@ -205,7 +210,7 @@ class LoudnessProcessor extends AudioWorkletProcessor {
 
     for (let bufIdx = idx1; bufIdx < idx2; bufIdx++) {
       data = arraybuffer[buffer.getIndex(bufIdx)];
-      meansquare += data; //*data; //the squares are already saved
+      meansquare += data; // * data; //the squares are already saved
     }
 
     return meansquare / (idx2 - idx1);
