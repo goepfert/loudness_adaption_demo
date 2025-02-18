@@ -1,5 +1,7 @@
 /**
  * Some global configuration parameters
+ *
+ * author: Thomas Goepfert
  */
 
 const Config = {
@@ -43,7 +45,7 @@ const Config = {
     feedback: [1.0, -1.99004745483398, 0.99007225036621],
   },
 
-  timeIntervalForLoundessCalculation: 0.4,
+  timeIntervalForLoundessCalculation: 0.2, // in seconds
 };
 
 // Freeze the configuration object to make it immutable

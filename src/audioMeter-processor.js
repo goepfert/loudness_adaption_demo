@@ -1,6 +1,6 @@
 /**
  * inspired by https://github.com/cwilso/volume-meter/blob/master/volume-meter.js
- * extended for more than one channel
+ * extended for more than one channel and adapted to audioWorklet
  *
  * clipLevel: the level (0 to 1) that you would consider "clipping". Defaults to 0.98.
  * averaging: how "smoothed" you would like the meter to be over time. Should be between 0 and less than 1. Defaults to 0.95.

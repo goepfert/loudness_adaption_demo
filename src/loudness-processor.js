@@ -32,7 +32,7 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     this.initLoudnessProps();
 
     this.timeAccumulated = 0;
-    this.buffer = undefined;
+    this.buffer = [];
     this.meanSquares = undefined;
 
     // If we get a message from the main thread, we'll post a message back
@@ -81,10 +81,10 @@ class LoudnessProcessor extends AudioWorkletProcessor {
       console.warn('Buffer reset attempted while blocked');
       return;
     }
-    if (this.buffer != undefined) {
-      this.buffer.length = 0;
-      this.buffer = undefined;
-    }
+    this.buffer.length = 0;
+    this.buffer = [];
+    this.meanSquares.clear();
+    this.timeAccumulated = 0;
   }
 
   process(inputList, outputList) {
@@ -137,7 +137,7 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     }
 
     this.timeAccumulated += input[0].length / this.sampleRate;
-    if (this.timeAccumulated >= Config.timeIntervalForLoundessCalculation) {
+    if (this.timeAccumulated >= Config.timeIntervalForLoundessCalculation && this.meanSquares.buffer.length > 0) {
       const gatedLoudness = this.calculateLoudness();
       // Post the loudness value to the main thread
       this.port.postMessage({ name: 'loudness', value: gatedLoudness });

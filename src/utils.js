@@ -1,5 +1,7 @@
 /**
  * Some helper functions used in this project
+ *
+ * author: Thomas Goepfert
  */
 
 'use strict';

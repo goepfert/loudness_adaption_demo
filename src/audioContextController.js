@@ -154,20 +154,32 @@ function createAudioCtxCtrl(audioContext, buffer) {
     console.log('- STOP --------------------------------');
 
     commonStop();
-    // saw sometimes inconsistent data when not rebuilding loudness ... never found out why :(
-    loudnessProcessor = undefined;
+    if (loudnessProcessor != undefined) {
+      loudnessProcessor.port.postMessage('resetBuffer');
+      loudnessProcessor.disconnect();
+      loudnessProcessor = undefined;
+    }
+    if (audioMeter != undefined) {
+      audioMeter.disconnect();
+      audioMeter = undefined;
+    }
     targetGain = startGain;
     UICtrl.enableLoudnessControl();
   }
 
   function commonStop() {
-    loudnessProcessor.disconnect();
-    audioMeter.disconnect();
     if (source != undefined) {
       source.disconnect();
       source.stop(0);
       source = undefined;
     }
+    if (loudnessProcessor != undefined) {
+      loudnessProcessor.disconnect();
+    }
+    if (audioMeter != undefined) {
+      audioMeter.disconnect();
+    }
+
     pausedAt = 0;
     startedAt = 0;
     isPlaying = false;
