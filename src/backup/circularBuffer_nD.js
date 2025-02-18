@@ -10,7 +10,7 @@
  */
 
 class CircularBuffer_nD {
-  constructor(nChannels, length) {
+  constructor(nChannels, length, nSamplesPerInterval, nStepsize) {
     this.myBuffer = [];
     for (let chIdx = 0; chIdx < nChannels; chIdx++) {
       this.myBuffer.push(new Float32Array(length));
@@ -20,6 +20,15 @@ class CircularBuffer_nD {
     this.length = length;
     this.head = 0;
     this.isFull = false;
+
+    this.nSamplesPerInterval = nSamplesPerInterval; // how many samples are used for loudness calculation
+    this.nStepsize = nStepsize;
+
+    // how many overlapping intervals are used for loudness calculation
+    this.maxMeansquares = Math.floor((length - nSamplesPerInterval) / nStepsize + 1);
+    console.log((length - nSamplesPerInterval) / nStepsize + 1, this.maxMeansquares);
+
+    this.accumulatedSamples = 0;
   }
 
   validate(buffer) {
@@ -63,6 +72,12 @@ class CircularBuffer_nD {
       this.head = 0;
       this.isFull = true;
     }
+
+    // this.accumulatedSamples += fromBuffer[0].length;
+    // if(this.accumulatedSamples >= this.nStepsize && this.firstRound) {
+    //   this.accumulatedSamples = 0;
+    //   this.firstRound = false;
+    // }
   }
 
   /**

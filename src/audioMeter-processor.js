@@ -71,10 +71,9 @@ class AudioMeter extends AudioWorkletProcessor {
    * Process audio input and output.
    * @param {Float32Array[][]} inputList - The input audio buffers.
    * @param {Float32Array[][]} outputList - The output audio buffers.
-   * @param {object} parameters - The audio parameters.
    * @returns {boolean} - True to keep the processor alive, false otherwise.
    */
-  process(inputList, outputList, parameters) {
+  process(inputList, outputList) {
     const sourceLimit = Math.min(inputList.length, outputList.length);
 
     for (let inputNum = 0; inputNum < sourceLimit; inputNum++) {

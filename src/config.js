@@ -7,13 +7,13 @@ const Config = {
    * Enable or disable debug mode.
    * @type {boolean}
    */
-  debug: true,
+  debug: false,
 
   /**
    * Maximum loudness index.
    * @type {number}
    */
-  maxT_loudness_idx: 2,
+  maxT_loudness_idx: 1,
 
   /**
    * Maximum time in seconds for loudness re-calculation.

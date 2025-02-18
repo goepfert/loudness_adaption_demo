@@ -205,12 +205,6 @@ const MainApp = (() => {
     // if playing update graph and call recursively
     // remember to update again when resume playing
     if (audioCtxCtrl.getPlaying()) {
-      const loudnessProcessor = audioCtxCtrl.getLoudnessProcessor();
-      if (loudnessProcessor != undefined) {
-        loudnessProcessor.port.postMessage('getLoudness');
-        console.log('🚀 ~ updateAnimationFrame ~ loudnessProcessor.gatedLoudness:', loudnessProcessor.gatedLoudness);
-      }
-
       GraphCtrl.updateGraph();
       window.requestAnimationFrame(updateAnimationFrame);
     }

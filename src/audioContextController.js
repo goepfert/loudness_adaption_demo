@@ -19,25 +19,15 @@ function createAudioCtxCtrl(audioContext, buffer) {
 
   let decay_decrease = undefined;
   let decay_increase = undefined;
-
-  // Don't go too low with buffersize, saw some 'strange' or not expected things, like
-  // - number of process samples * sample rate smaller than playtime
-  // which accumulates over time.
-  // I believe that onprocess is not called with the proper samplerate and there is some sample rate conversion
-  // happening under the hood.
-  const bufferSize = 2 * 4096; // about 1/2 seconds for 48 kHz sampling rate
-  let sp_loudness = undefined;
-  let sp_loudness_control = undefined;
   let source = undefined;
   let gain = undefined;
+  let audioMeter = undefined;
+  let loudnessProcessor = undefined;
+  let loudnessProcessor_control = undefined;
 
   let startedAt = 0;
   let pausedAt = 0;
   let isPlaying = false;
-
-  let audioMeter = undefined;
-  let loudnessProcessor = undefined;
-  // let loudnessSample_control = undefined;
 
   // Callback called at the end of onProcess
   function callback_loudness(gatedLoudness) {
@@ -102,7 +92,9 @@ function createAudioCtxCtrl(audioContext, buffer) {
     loudnessProcessor.port.onmessage = (e) => {
       switch (e.data.name) {
         case 'loudness':
-          loudnessProcessor.gatedLoudness = e.data.value;
+          const gatedLoudness = e.data.value;
+          callback_loudness(gatedLoudness);
+          callback_loudness_control(gatedLoudness);
           break;
         default:
           break;
@@ -115,35 +107,19 @@ function createAudioCtxCtrl(audioContext, buffer) {
     console.log('- PLAY --------------------------------');
 
     UICtrl.disableLoudnessControl();
-    // if (loudnessSample == undefined) {
-    //   loudnessSample = new LoudnessSample(audioContext, buffer, callback_loudness, ParaCtrl.getLoudnessProperties(), 1);
-    // }
-    // if (loudnessSample_control == undefined) {
-    //   loudnessSample_control = new LoudnessSample(
-    //     audioContext,
-    //     buffer,
-    //     callback_loudness_control,
-    //     {
-    //       interval: 0.4,
-    //       overlap: 0.75,
-    //       maxT: Config.maxT_recalc_loudness,
-    //     },
-    //     2
-    //   );
-    // }
     if (audioMeter == undefined) {
+      console.log('ping');
       audioMeter = createAudioMeterProcessor();
     }
     if (loudnessProcessor == undefined) {
+      console.log('pong');
       loudnessProcessor = createLoudnessProcessor();
     }
 
-    loudnessProcessor.port.postMessage('getLoudness');
+    gain = audioContext.createGain();
 
     source = audioContext.createBufferSource();
     source.buffer = buffer;
-
-    source.connect(audioMeter);
 
     // frequency response tested with https://developer.mozilla.org/de/docs/Web/API/Web_Audio_API/Using_IIR_filters
     const feedForward_shelving = Config.shelving.feedforward;
@@ -154,34 +130,9 @@ function createAudioCtxCtrl(audioContext, buffer) {
     const feedBack_highpass = Config.highpass.feedback;
     const iirfilter_highpass = audioContext.createIIRFilter(feedForward_highpass, feedBack_highpass);
 
-    source.connect(iirfilter_shelving).connect(iirfilter_highpass);
-
-    iirfilter_highpass.connect(loudnessProcessor).connect(audioContext.destination);
-
-    // source.connect(audioContext.destination);
-
-    // sp_loudness = audioContext.createScriptProcessor(bufferSize, buffer.numberOfChannels, buffer.numberOfChannels);
-    // sp_loudness.onaudioprocess = loudnessSample.onProcess;
-    // source.connect(sp_loudness);
-
-    // // output unfiltered data
-    // gain = audioContext.createGain();
-    // gain.gain.setValueAtTime(targetGain, audioContext.currentTime); //?
-
-    // // measure again after gain control
-    // sp_loudness_control = audioContext.createScriptProcessor(
-    //   bufferSize,
-    //   buffer.numberOfChannels,
-    //   buffer.numberOfChannels
-    // );
-    // sp_loudness_control.onaudioprocess = loudnessSample_control.onProcess;
-
-    // source.connect(gain);
-    // gain.connect(sp_loudness_control);
-    // gain.connect(audioContext.destination);
-
-    // meter = createAudioMeter(audioContext, buffer.numberOfChannels, 0.98, 0.95, Config.audioMeter_cliLag);
-    // gain.connect(meter);
+    source.connect(iirfilter_shelving).connect(iirfilter_highpass).connect(loudnessProcessor);
+    source.connect(audioMeter).connect(gain).connect(audioContext.destination);
+    gain.gain.setValueAtTime(targetGain, audioContext.currentTime); //?
 
     source.start(0, pausedAt);
     source.loop = ParaCtrl.getLoop();
@@ -210,6 +161,8 @@ function createAudioCtxCtrl(audioContext, buffer) {
   }
 
   function commonStop() {
+    loudnessProcessor.disconnect();
+    audioMeter.disconnect();
     if (source != undefined) {
       source.disconnect();
       source.stop(0);
@@ -280,11 +233,11 @@ function createAudioCtxCtrl(audioContext, buffer) {
 
   function reset() {
     // no need for play pause, fixes also reset loudness in file loop if playtime>duration
-    if (loudnessSample != undefined) {
-      loudnessSample.resetBuffer();
+    if (loudnessProcessor != undefined) {
+      loudnessProcessor.port.postMessage('resetBuffer');
     }
-    if (loudnessSample_control != undefined) {
-      loudnessSample_control.resetBuffer();
+    if (loudnessProcessor_control != undefined) {
+      loudnessProcessor_control.port.postMessage('resetBuffer');
     }
     if (gain != undefined) {
       gain.gain.setValueAtTime(startGain, audioContext.currentTime);
@@ -298,8 +251,6 @@ function createAudioCtxCtrl(audioContext, buffer) {
   }
 
   function getMeter() {
-    // return meter;
-    // console.log('ameter:', audioMeter);
     return audioMeter;
   }
 

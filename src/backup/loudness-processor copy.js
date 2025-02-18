@@ -7,12 +7,13 @@
  * author: Thomas Goepfert
  */
 
-import CircularBuffer from './CircularBuffer.js';
-import { Config } from './config.js';
-import Utils from './utils.js';
+import CircularBuffer_nD from './circularBuffer_nD.js';
+import CircularBuffer from '../CircularBuffer.js';
+import { Config } from '../config.js';
+import Utils from '../utils.js';
 
 /**
- *
+ * ! just saving this file as a reference after refactoring to use meanSquares buffer
  */
 class LoudnessProcessor extends AudioWorkletProcessor {
   constructor(options) {
@@ -20,7 +21,10 @@ class LoudnessProcessor extends AudioWorkletProcessor {
 
     this.blocked = false; // can I reset the buffers?
     this.loudnessprops = Object.assign({}, options.processorOptions.loudnessprops); // not sure if I really need a 'deep' copy
+    this.initLoudnessProps(); // but ... will never be called from 'outside'
+
     this.gamma_a = -70; // LKFS
+    this.copybuffer = undefined; // 'history' circular buffer
     this.once = true; // some logging
     this.sampleRate = 48000; // can we obtain it somwhere else?
     this.nSamplesPerInterval = 0;
@@ -28,11 +32,9 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     this.nChannels = 0;
     this.channelWeight = []; // Gi
     this.firstCall = true;
-
-    this.initLoudnessProps();
-
     this.timeAccumulated = 0;
-    this.buffer = undefined;
+    this.timeIntervallForLoundess = 0.5;
+    this.buffer = [];
     this.meanSquares = undefined;
 
     // If we get a message from the main thread, we'll post a message back
@@ -42,8 +44,8 @@ class LoudnessProcessor extends AudioWorkletProcessor {
           console.log('resetting loudness buffer');
           this.resetBuffer();
           break;
+        // we don't post loudness back on request, we just do it on our own
         // case 'getLoudness':
-        //   // console.log('getLoudness', this.gatedLoudness);
         //   this.port.postMessage({ name: 'loudness', value: this.gatedLoudness });
         //   break;
         default:
@@ -51,12 +53,6 @@ class LoudnessProcessor extends AudioWorkletProcessor {
           break;
       }
     };
-
-    // Initialize meanSquares buffer
-    const length =
-      Math.floor((this.sampleRate * this.loudnessprops.maxT) / this.nSamplesPerInterval + 1) * this.nSamplesPerInterval;
-    const maxMeansquares = Math.floor((length - this.nSamplesPerInterval) / this.nStepsize + 1);
-    this.meanSquares = new CircularBuffer(maxMeansquares);
   }
 
   initLoudnessProps() {
@@ -73,28 +69,19 @@ class LoudnessProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * clear buffer
+   * clear copybuffer
    * can be used to mimic a fresh start of the loudness calculation (e.g. a track change)
    */
   resetBuffer() {
-    if (this.blocked) {
-      console.warn('Buffer reset attempted while blocked');
-      return;
-    }
-    if (this.buffer != undefined) {
-      this.buffer.length = 0;
-      this.buffer = undefined;
+    while (this.blocked == true) {} // muchos dangerous ... (not really sure if this is still needed)
+    if (this.copybuffer != undefined) {
+      this.copybuffer.length = 0;
+      this.copybuffer = undefined;
     }
   }
 
-  process(inputList, outputList) {
+  process(inputList, outputList, parameters) {
     this.blocked = true;
-
-    if (!inputList.length || !outputList.length) {
-      console.error('Input or output list is empty');
-      this.blocked = false;
-      return true;
-    }
 
     const sourceLimit = Math.min(inputList.length, outputList.length);
     Utils.assert(sourceLimit == 1, 'No input sources or more than one input source is not supported');
@@ -103,15 +90,22 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     const output = outputList[0];
     this.nChannels = input.length;
 
+    // Utils.assert(this.nChannels == output.length, 'Number of input and output channels must match');
     if (this.nChannels != output.length || this.nChannels == 0) {
-      console.error('Number of input and output channels must match and be greater than 0');
-      this.blocked = false;
-      return true;
+      return true; // never return false in the process method, chrome doesn't like it ...
     }
 
     if (this.firstCall == true) {
       this.firstCall = false;
       this.initWeights(this.nChannels);
+    }
+
+    // this.concat(input);
+    if (this.meanSquares == undefined) {
+      const length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / input[0].length + 1) * input[0].length;
+      const maxMeansquares = Math.floor((length - this.nSamplesPerInterval) / this.nStepsize + 1);
+      this.meanSquares = new CircularBuffer(maxMeansquares);
+      // console.log(this.meanSquares);
     }
 
     // Accumulate audio data
@@ -132,14 +126,18 @@ class LoudnessProcessor extends AudioWorkletProcessor {
         }
         meansquare[channel] /= this.nSamplesPerInterval;
       }
+
+      // console.log(meansquare);
       this.meanSquares.add(meansquare);
-      this.buffer = Utils.cutOutFirstNItems(this.buffer, this.nStepsize);
+      for (let channel = 0; channel < input.length; channel++) {
+        this.buffer[channel] = Utils.cutOutFirstNItems(this.buffer[channel], this.nStepsize);
+      }
     }
 
     this.timeAccumulated += input[0].length / this.sampleRate;
     if (this.timeAccumulated >= Config.timeIntervalForLoundessCalculation) {
       const gatedLoudness = this.calculateLoudness();
-      // Post the loudness value to the main thread
+      console.log('🚀 ~ LoudnessProcessor ~ process ~ gatedLoudness:', gatedLoudness);
       this.port.postMessage({ name: 'loudness', value: gatedLoudness });
       this.timeAccumulated = 0;
     }
@@ -153,10 +151,39 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     return true;
   }
 
+  /**
+   * calculates gated loudness of the accumulated Audiobuffers since time T
+   */
+  concat(buffer) {
+    // first call or after resetMemory
+    if (this.copybuffer == undefined) {
+      // how long should the copybuffer be at least?
+      // --> at least maxT should fit in and length shall be an integer fraction of buffer length
+      const length = Math.floor((this.sampleRate * this.loudnessprops.maxT) / buffer[0].length + 1) * buffer[0].length;
+
+      console.log(this.sampleRate * this.loudnessprops.maxT, length);
+
+      this.copybuffer = new CircularBuffer_nD(this.nChannels, length, this.nSamplesPerInterval, this.nStepsize);
+    }
+
+    // accumulate buffer to previous calls
+    this.copybuffer.concat(buffer);
+  }
+
   calculateLoudness() {
-    // get mean squares of overlapping intervals
+    // must be gt nSamplesPerInterval
+    // or: wait at least one interval time T to be able to calculate loudness
+    // if (this.copybuffer.getLength() < this.nSamplesPerInterval) {
+    //   console.log('buffer too small ... have to eat more data for at least one interval');
+    //   return NaN;
+    // }
+
+    // get array of meansquares from buffer of overlapping intervals
+    // let meanSquares = this.getBufferMeanSquares(this.copybuffer, this.nSamplesPerInterval, this.nStepsize);
     let meanSquares = Utils.deepCopyArray(this.meanSquares.getBuffer());
-    meanSquares = Utils.transposeArray(meanSquares); // to match the 'old style' of meanSquares
+    console.log('object with meansquares', meanSquares);
+    meanSquares = Utils.transposeArray(meanSquares);
+    console.log('object with meansquares_T', meanSquares);
 
     // first stage filter
     this.filterBlocks(meanSquares, this.gamma_a);
@@ -188,6 +215,43 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     gatedLoudness = -0.691 + 10.0 * Math.log10(gatedLoudness);
 
     return gatedLoudness;
+  }
+
+  /**
+   * calculate meansquares of overlapping intervals in given buffer
+   */
+  getBufferMeanSquares(buffer, nSamplesPerInterval, nStepsize) {
+    let meanSquares = {};
+    const length = buffer.getLength();
+
+    for (let chIdx = 0; chIdx < buffer.getnChannels(); chIdx++) {
+      const arraybuffer = buffer.getMyChannelData(chIdx);
+      let idx1 = 0;
+      let idx2 = nSamplesPerInterval;
+      meanSquares[chIdx] = [];
+      while (idx2 < length) {
+        meanSquares[chIdx].push(this.getMeanSquare(arraybuffer, buffer, idx1, idx2));
+        idx1 += nStepsize;
+        idx2 += nStepsize;
+      }
+    }
+
+    return meanSquares;
+  }
+
+  /**
+   * calculate meansquare of given buffer and range
+   */
+  getMeanSquare(arraybuffer, buffer, idx1, idx2) {
+    let meansquare = 0;
+    let data = 0;
+
+    for (let bufIdx = idx1; bufIdx < idx2; bufIdx++) {
+      data = arraybuffer[buffer.getIndex(bufIdx)];
+      meansquare += data; // * data; //the squares are already saved
+    }
+
+    return meansquare / (idx2 - idx1);
   }
 
   /**
