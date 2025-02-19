@@ -12,9 +12,13 @@ import { Config } from './config.js';
 import Utils from './utils.js';
 
 /**
- *
+ * LoudnessProcessor class extends AudioWorkletProcessor to calculate loudness based on ITU-R BS.1770.
  */
 class LoudnessProcessor extends AudioWorkletProcessor {
+  /**
+   * Creates an instance of LoudnessProcessor.
+   * @param {Object} options - Options for the processor.
+   */
   constructor(options) {
     super();
 
@@ -42,10 +46,6 @@ class LoudnessProcessor extends AudioWorkletProcessor {
           console.log('resetting loudness buffer');
           this.resetBuffer();
           break;
-        // case 'getLoudness':
-        //   // console.log('getLoudness', this.gatedLoudness);
-        //   this.port.postMessage({ name: 'loudness', value: this.gatedLoudness });
-        //   break;
         default:
           console.log('hä?');
           break;
@@ -59,11 +59,18 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     this.meanSquares = new CircularBuffer(maxMeansquares);
   }
 
+  /**
+   * Initializes loudness properties.
+   */
   initLoudnessProps() {
     this.nSamplesPerInterval = this.loudnessprops.interval * this.sampleRate;
     this.nStepsize = (1.0 - this.loudnessprops.overlap) * this.nSamplesPerInterval;
   }
 
+  /**
+   * Initializes channel weights.
+   * @param {number} nChannels - Number of channels.
+   */
   initWeights(nChannels) {
     for (let chIdx = 0; chIdx < nChannels; chIdx++) {
       // channel weight (no surround!)
@@ -73,8 +80,8 @@ class LoudnessProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * clear buffer
-   * can be used to mimic a fresh start of the loudness calculation (e.g. a track change)
+   * Clears the buffer.
+   * Can be used to mimic a fresh start of the loudness calculation (e.g. a track change).
    */
   resetBuffer() {
     if (this.blocked) {
@@ -87,6 +94,12 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     this.timeAccumulated = 0;
   }
 
+  /**
+   * Processes the audio data.
+   * @param {Array} inputList - List of input audio buffers.
+   * @param {Array} outputList - List of output audio buffers.
+   * @returns {boolean} - Returns true to keep the processor alive.
+   */
   process(inputList, outputList) {
     this.blocked = true;
 
@@ -153,6 +166,10 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     return true;
   }
 
+  /**
+   * Calculates the loudness of the accumulated audio buffers.
+   * @returns {number} - The calculated loudness.
+   */
   calculateLoudness() {
     // get mean squares of overlapping intervals
     let meanSquares = Utils.deepCopyArray(this.meanSquares.getBuffer());
@@ -191,7 +208,9 @@ class LoudnessProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * remove entries (block loudness) from from meansquares object
+   * Removes entries (block loudness) from the mean squares object.
+   * @param {Object} meanSquares - The mean squares object.
+   * @param {number} value - The threshold value for filtering.
    */
   filterBlocks(meanSquares, value) {
     //assuming that all other meansquares (other channels) have same length
