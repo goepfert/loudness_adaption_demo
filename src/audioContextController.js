@@ -7,7 +7,6 @@
 import GraphCtrl from './graphController.js';
 import ParaCtrl from './parameterController.js';
 import UICtrl from './userInterfaceController.js';
-import Utils from './utils.js';
 import { Config } from './config.js';
 
 ('use strict');
@@ -31,9 +30,12 @@ function createAudioCtxCtrl(audioContext, buffer) {
 
   // Callback called at the end of onProcess
   function callback_loudness(gatedLoudness) {
+    if (isNaN(gatedLoudness)) {
+      gatedLoudness = ParaCtrl.getDefaultTargetLoudness();
+    }
     gatedLoudness = Number(gatedLoudness.toFixed(2));
-    const currentPlayTime = getCurrentPlayTime();
 
+    const currentPlayTime = getCurrentPlayTime();
     GraphCtrl.setDataPoint(currentPlayTime, 0);
     GraphCtrl.setDataPoint(gatedLoudness, 1);
     if (!isNaN(gatedLoudness)) {
@@ -84,7 +86,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
 
   function createLoudnessProcessor() {
     loudnessProcessor = new AudioWorkletNode(audioContext, 'loudness-processor', {
-      processorOptions: { loudnessprops: ParaCtrl.getLoudnessProperties() },
+      processorOptions: { loudnessprops: ParaCtrl.getLoudnessProperties(), id: 'loudness-processor' },
     });
     // attach to object
     loudnessProcessor.gatedLoudness = NaN;
@@ -94,7 +96,6 @@ function createAudioCtxCtrl(audioContext, buffer) {
         case 'loudness':
           const gatedLoudness = e.data.value;
           callback_loudness(gatedLoudness);
-          callback_loudness_control(gatedLoudness);
           break;
         default:
           break;
@@ -103,17 +104,48 @@ function createAudioCtxCtrl(audioContext, buffer) {
     return loudnessProcessor;
   }
 
-  async function play() {
+  function createLoudnessProcessor_control() {
+    loudnessProcessor_control = new AudioWorkletNode(audioContext, 'loudness-processor', {
+      processorOptions: {
+        loudnessprops: {
+          interval: 0.4,
+          overlap: 0.75,
+          maxT: 4.0,
+        },
+        id: 'loudness-processor-control',
+      },
+    });
+    // attach to object
+    loudnessProcessor_control.gatedLoudness = NaN;
+
+    loudnessProcessor_control.port.onmessage = (e) => {
+      switch (e.data.name) {
+        case 'loudness':
+          const gatedLoudness = e.data.value;
+          callback_loudness_control(gatedLoudness);
+          break;
+        default:
+          break;
+      }
+    };
+    return loudnessProcessor_control;
+  }
+
+  function play() {
     console.log('- PLAY --------------------------------');
 
     UICtrl.disableLoudnessControl();
     if (audioMeter == undefined) {
-      console.log('ping');
+      console.log('creating audioMeter');
       audioMeter = createAudioMeterProcessor();
     }
     if (loudnessProcessor == undefined) {
-      console.log('pong');
+      console.log('creating loudnessProcessor');
       loudnessProcessor = createLoudnessProcessor();
+    }
+    if (loudnessProcessor_control == undefined) {
+      console.log('creating loudnessProcessor after gain control');
+      loudnessProcessor_control = createLoudnessProcessor_control();
     }
 
     gain = audioContext.createGain();
@@ -131,7 +163,7 @@ function createAudioCtxCtrl(audioContext, buffer) {
     const iirfilter_highpass = audioContext.createIIRFilter(feedForward_highpass, feedBack_highpass);
 
     source.connect(iirfilter_shelving).connect(iirfilter_highpass).connect(loudnessProcessor);
-    source.connect(audioMeter).connect(gain).connect(audioContext.destination);
+    source.connect(audioMeter).connect(gain).connect(loudnessProcessor_control).connect(audioContext.destination);
     gain.gain.setValueAtTime(targetGain, audioContext.currentTime); //?
 
     source.start(0, pausedAt);
@@ -159,6 +191,11 @@ function createAudioCtxCtrl(audioContext, buffer) {
       loudnessProcessor.disconnect();
       loudnessProcessor = undefined;
     }
+    if (loudnessProcessor_control != undefined) {
+      loudnessProcessor_control.port.postMessage('resetBuffer');
+      loudnessProcessor_control.disconnect();
+      loudnessProcessor_control = undefined;
+    }
     if (audioMeter != undefined) {
       audioMeter.disconnect();
       audioMeter = undefined;
@@ -168,16 +205,20 @@ function createAudioCtxCtrl(audioContext, buffer) {
   }
 
   function commonStop() {
-    if (source != undefined) {
-      source.disconnect();
-      source.stop(0);
-      source = undefined;
-    }
     if (loudnessProcessor != undefined) {
       loudnessProcessor.disconnect();
     }
+    if (loudnessProcessor_control != undefined) {
+      loudnessProcessor_control.disconnect();
+    }
     if (audioMeter != undefined) {
       audioMeter.disconnect();
+    }
+    if (source != undefined) {
+      console.log('disconnecting source and all connected nodes');
+      source.disconnect();
+      source.stop(0);
+      source = undefined;
     }
 
     pausedAt = 0;
@@ -266,10 +307,6 @@ function createAudioCtxCtrl(audioContext, buffer) {
     return audioMeter;
   }
 
-  function getLoudnessProcessor() {
-    return loudnessProcessor;
-  }
-
   // Public methods
   return {
     getCurrentPlayTime,
@@ -282,7 +319,6 @@ function createAudioCtxCtrl(audioContext, buffer) {
     reset,
     setLoop,
     getMeter,
-    getLoudnessProcessor,
   };
 }
 
