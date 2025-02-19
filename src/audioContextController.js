@@ -163,7 +163,19 @@ function createAudioCtxCtrl(audioContext, buffer) {
     const iirfilter_highpass = audioContext.createIIRFilter(feedForward_highpass, feedBack_highpass);
 
     source.connect(iirfilter_shelving).connect(iirfilter_highpass).connect(loudnessProcessor);
-    source.connect(audioMeter).connect(gain).connect(loudnessProcessor_control).connect(audioContext.destination);
+
+    const iirfilter_shelving_2 = audioContext.createIIRFilter(feedForward_shelving, feedBack_shelving);
+    const iirfilter_highpass_2 = audioContext.createIIRFilter(feedForward_highpass, feedBack_highpass);
+
+    source
+      .connect(gain)
+      .connect(audioMeter)
+      .connect(iirfilter_shelving_2)
+      .connect(iirfilter_highpass_2)
+      .connect(loudnessProcessor_control);
+
+    gain.connect(audioContext.destination);
+
     gain.gain.setValueAtTime(targetGain, audioContext.currentTime); //?
 
     source.start(0, pausedAt);
