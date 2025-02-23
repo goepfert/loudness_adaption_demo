@@ -86,7 +86,9 @@ class LoudnessProcessor extends AudioWorkletProcessor {
   resetBuffer() {
     if (this.blocked) {
       console.warn('Buffer reset attempted while blocked');
-      return;
+      Utils.sleep_ms(50).then(() => {
+        this.resetBuffer();
+      });
     }
     this.buffer.length = 0;
     this.buffer = [];
