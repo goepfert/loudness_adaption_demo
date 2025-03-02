@@ -43,6 +43,7 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     this.n_square_stepsize = 0;
 
     this.timeAccumulated = 0;
+    this.buffer = [];
     this.meanSquares = undefined;
 
     // If we get a message from the main thread, we'll post a message back
@@ -92,15 +93,10 @@ class LoudnessProcessor extends AudioWorkletProcessor {
   resetBuffer() {
     if (this.blocked) {
       console.warn('Buffer reset attempted while blocked');
-      Utils.sleep_ms(20).then(() => {
-        this.resetBuffer();
-      });
+      return;
     }
-    this.square_interval = new Array(this.nChannels).fill(0);
-    this.square_step = new Array(this.nChannels).fill(0);
-    this.square_steps = [];
-    this.n_square_interval = 0;
-    this.n_square_stepsize = 0;
+    this.buffer.length = 0;
+    this.buffer = [];
     this.meanSquares.clear();
     this.timeAccumulated = 0;
   }
@@ -141,46 +137,27 @@ class LoudnessProcessor extends AudioWorkletProcessor {
     }
 
     //--------------------------------------------------------------------------------
-    // Another optimization: do not copy the whole audiobuffer but just save the meansquares of the intervals
-    // -> need only to memorize the squares of the last nStepsize samples
 
-    // Sum up channel squares
-    for (let i = 0; i < input[0].length; i++) {
+    // Accumulate audio data
+    for (let channel = 0; channel < input.length; channel++) {
+      if (!this.buffer[channel]) {
+        this.buffer[channel] = [];
+      }
+      this.buffer[channel].push(...input[channel]);
+    }
+
+    // Process accumulated data when buffer reaches desired size
+    if (this.buffer[0].length >= this.nSamplesPerInterval) {
+      let meansquare = [];
       for (let channel = 0; channel < input.length; channel++) {
-        this.square_interval[channel] += input[channel][i] * input[channel][i];
-        this.square_step[channel] += input[channel][i] * input[channel][i];
-        if (this.square_interval[channel] < 0) {
-          throw new Error("square_interval[channel] can't be negative");
+        meansquare[channel] = 0;
+        for (let bufIdx = 0; bufIdx < this.nSamplesPerInterval; bufIdx++) {
+          meansquare[channel] += this.buffer[channel][bufIdx] * this.buffer[channel][bufIdx];
         }
+        meansquare[channel] /= this.nSamplesPerInterval;
       }
-      this.n_square_interval += 1;
-      this.n_square_stepsize += 1;
-
-      // remember the squares of the x-th nStepsize samples
-      if (this.n_square_stepsize >= this.nStepsize) {
-        this.square_steps.push(Utils.deepCopyArray(this.square_step));
-        this.square_step = new Array(this.nChannels).fill(0);
-        this.n_square_stepsize = 0;
-      }
-
-      // enough samples for one interval
-      if (this.n_square_interval >= this.nSamplesPerInterval) {
-        // calculate mean square
-        let mean_square = [];
-        for (let channel = 0; channel < input.length; channel++) {
-          mean_square[channel] = this.square_interval[channel] / this.n_square_interval;
-        }
-
-        this.meanSquares.add(mean_square);
-
-        // now substract the squares of the first nStepsize samples
-        for (let channel = 0; channel < input.length; channel++) {
-          this.square_interval[channel] -= this.square_steps[0][channel];
-        }
-        // remove the first element of the array
-        this.square_steps.shift();
-        this.n_square_interval -= this.nStepsize; // to reflect the overlap
-      }
+      this.meanSquares.add(meansquare);
+      this.buffer = Utils.cutOutFirstNItems(this.buffer, this.nStepsize);
     }
 
     //--------------------------------------------------------------------------------
