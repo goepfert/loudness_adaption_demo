@@ -115,9 +115,21 @@ class LoudnessSample {
    * Called by the ScriptProcessor Node with chunks of the AudioBuffer
    */
   onProcess(audioProcessingEvent) {
+    // console.log('🚀 ~ LoudnessSample ~ onProcess ~ audioProcessingEvent:', audioProcessingEvent);
     this.blocked = true;
-    let inputBuffer = audioProcessingEvent.inputBuffer;
-    let outputBuffer = audioProcessingEvent.outputBuffer;
+
+    // let inputBuffer = audioProcessingEvent.inputBuffer;
+    // let outputBuffer = audioProcessingEvent.outputBuffer;
+
+    let inputBuffer = audioProcessingEvent;
+    let outputBuffer = new AudioBuffer({
+      length: inputBuffer.length,
+      numberOfChannels: inputBuffer.numberOfChannels,
+      sampleRate: inputBuffer.sampleRate,
+    });
+
+    // console.log('🚀 ~ LoudnessSample ~ onProcess ~ inputBuffer:', inputBuffer);
+    // console.log('🚀 ~ LoudnessSample ~ onProcess ~ outputBuffer:', outputBuffer);
 
     for (let chIdx = 0; chIdx < outputBuffer.numberOfChannels; chIdx++) {
       let inputData = inputBuffer.getChannelData(chIdx);

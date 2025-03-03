@@ -49,6 +49,15 @@ const UICtrl = (() => {
     }
   }
 
+  function addFileProps(props) {
+    let ul = document.getElementById('fileprops');
+    for (let key in props) {
+      let li = document.createElement('li');
+      li.appendChild(document.createTextNode(key + ': ' + props[key]));
+      ul.appendChild(li);
+    }
+  }
+
   function showLoudnessProps() {
     let prop = ParaCtrl.getInterval();
     let select = document.getElementById('Interval');
@@ -146,6 +155,7 @@ const UICtrl = (() => {
   // Public methods
   return {
     showFileProps,
+    addFileProps,
     showLoudnessProps,
     applyLoudnessProps,
     applyGainProps,

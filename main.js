@@ -10,6 +10,7 @@ import ParaCtrl from './src/parameterController.js';
 import GraphCtrl from './src/graphController.js';
 import UICtrl from './src/userInterfaceController.js';
 import { createAudioCtxCtrl } from './src/audioContextController.js';
+import LoudnessSample from './src/backup/loudness.js';
 
 ('use strict');
 
@@ -152,6 +153,20 @@ const MainApp = (() => {
         UICtrl.enableLoudnessControl();
 
         updateAnimationFrame();
+
+        // Time for do some offline file-loudness calculation with the decoded AudioBuffer
+        // Finally I can use to old implementation of the LoudnessSample class ;) ...
+        // Who can read this, is a hero!
+        const loudnessSample = new LoudnessSample(
+          audioContext,
+          decodedData,
+          (loudness) => {
+            const gatedLoudness = Number(loudness.toFixed(2));
+            UICtrl.addFileProps({ file_loudness: gatedLoudness });
+          },
+          ParaCtrl.getLoudnessProperties()
+        );
+        loudnessSample.onProcess(decodedData);
       });
     };
     reader.readAsArrayBuffer(file);
